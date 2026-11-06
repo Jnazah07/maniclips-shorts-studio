@@ -4,49 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#121008">
-<title>Clipforge &middot; Shorts Studio</title>
-<meta name="description" content="Clipforge Shorts Studio. Pick a ratio, background, length and caption language, then turn one long video into vertical shorts.">
+<meta name="theme-color" content="#081a18">
+<title>Shortsmith &middot; Shorts Studio</title>
+<meta name="description" content="Shortsmith Shorts Studio. Pick a ratio, background, length and caption language, then turn one long video into vertical shorts.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Clipforge - Shorts Studio">
+<meta property="og:title" content="Shortsmith - Shorts Studio">
 <meta property="og:description" content="Turn one long video into vertical shorts. Choose the frame, length and captions, then preview exactly how viewers will see it.">
-<meta property="og:site_name" content="Clipforge">
+<meta property="og:site_name" content="Shortsmith">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff7a3d'/%3E%3Cstop offset='1' stop-color='%23e83a1f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='url(%23g)'/%3E%3Cpath d='M11 9.5v13l10-6.5z' fill='%23fff7ed'/%3E%3Cpath d='M19 9.5v13' stroke='%23fff7ed' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235eead4'/%3E%3Cstop offset='1' stop-color='%2314b8a6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M16 2l12.1 7v14L16 30 3.9 23V9z' fill='url(%23g)'/%3E%3Cpath d='M10 16l6-6v12z' fill='%23083118'/%3E%3Cpath d='M10 16h12' stroke='%23083118' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --font: "Plus Jakarta Sans", "Sora", system-ui, -apple-system, sans-serif;
-    --font-display: "Sora", "Plus Jakarta Sans", system-ui, sans-serif;
+    --font: "Inter", "Space Grotesk", system-ui, -apple-system, sans-serif;
+    --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
 
-    --bg-top: #2a1f14;
-    --bg-mid: #17120c;
-    --bg-bottom: #0e0c09;
+    --bg-top: #0e2e2a;
+    --bg-mid: #0a1f1e;
+    --bg-bottom: #081412;
 
-    --sidebar: #171310;
-    --surface: #141210;
-    --surface-raised: #1a1714;
-    --surface-hover: #201b17;
+    --sidebar: #0d1f1d;
+    --surface: #0f1f1d;
+    --surface-raised: #14302d;
+    --surface-hover: #183a36;
 
-    --line: rgba(255, 233, 210, .08);
-    --line-strong: rgba(255, 233, 210, .14);
+    --line: rgba(153, 246, 228, .09);
+    --line-strong: rgba(153, 246, 228, .16);
 
-    --text: #fdf6ec;
-    --text-2: #b8ab9a;
-    --text-3: #8a7f72;
+    --text: #ecfdf9;
+    --text-2: #9fc8bf;
+    --text-3: #6f9a92;
 
-    --accent: #ff5a2d;
-    --accent-ink: #fff4ec;
-    --accent-soft: #3d2416;
-    --accent-wash: rgba(255, 90, 45, .1);
+    --accent: #2dd4bf;
+    --accent-ink: #0a2e29;
+    --accent-soft: #0f3330;
+    --accent-wash: rgba(45, 212, 191, .12);
 
-    --danger: #ff6b5e;
-    --ok: #a8d86e;
+    --danger: #ff8a7a;
+    --ok: #fbbf24;
 
-    --r-card: 20px;
-    --r-control: 10px;
+    --r-card: 22px;
+    --r-control: 999px;
     --r-pill: 999px;
 
     --ease: cubic-bezier(.23, 1, .32, 1);
@@ -73,8 +73,8 @@
     font-family: var(--font);
     color: var(--text);
     background:
-      radial-gradient(1100px 520px at 58% -12%, #4a2c12 0%, rgba(74, 44, 18, 0) 62%),
-      radial-gradient(700px 400px at 10% 100%, #382114 0%, rgba(56, 33, 20, 0) 60%),
+      radial-gradient(1100px 520px at 58% -12%, #134e4a 0%, rgba(19, 78, 74, 0) 62%),
+      radial-gradient(700px 400px at 10% 100%, #0f3a36 0%, rgba(15, 58, 54, 0) 60%),
       linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 34%, var(--bg-bottom) 100%);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
@@ -135,7 +135,7 @@
 
   .skip-link:focus-visible { transform: translateY(0); }
 
-  ::selection { background: rgba(255, 90, 45, .38); color: #fff7ed; }
+  ::selection { background: rgba(45, 212, 191, .38); color: #ecfdf9; }
 
   /* ---------- shell ---------- */
 
@@ -174,15 +174,13 @@
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 11px;
-    color: #fff7ed;
-    background: linear-gradient(135deg, #ff8a3d 0%, #e8491d 100%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .3),
-      0 8px 18px -8px rgba(232, 73, 29, .85);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    color: #0a2e29;
+    background: linear-gradient(135deg, #5eead4 0%, #14b8a6 100%);
+    box-shadow: none;
   }
 
-  .brand-mark .ico { width: 22px; height: 22px; stroke-width: 1.8; }
+  .brand-mark .ico { width: 22px; height: 22px; stroke-width: 2; }
 
   .brand-text { min-width: 0; }
   .brand-name {
@@ -230,9 +228,9 @@
   .nav-item:active { background: rgba(255, 255, 255, .06); }
 
   .nav-item[aria-current="page"] {
-    color: #ffb199;
-    background: linear-gradient(90deg, rgba(255, 90, 45, .2), rgba(255, 90, 45, .08));
-    box-shadow: inset 0 0 0 1px rgba(255, 110, 60, .3);
+    color: #99f6e4;
+    background: linear-gradient(90deg, rgba(45, 212, 191, .22), rgba(45, 212, 191, .08));
+    box-shadow: inset 0 0 0 1px rgba(45, 212, 191, .3);
   }
 
   .nav-item .ico { width: 19px; height: 19px; }
@@ -293,7 +291,7 @@
     flex: none;
     padding: 0 32px;
     border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(42, 31, 20, .85), rgba(23, 18, 12, .6));
+    background: linear-gradient(180deg, rgba(14, 46, 42, .85), rgba(10, 31, 30, .6));
     backdrop-filter: blur(8px);
   }
 
@@ -318,9 +316,9 @@
     border-radius: var(--r-pill);
     font-size: 12px;
     font-weight: 700;
-    color: #ffd9c2;
+    color: #99f6e4;
     letter-spacing: .02em;
-    background: rgba(255, 90, 45, .08);
+    background: rgba(45, 212, 191, .08);
   }
 
   /* ---------- status banner ---------- */
@@ -332,8 +330,8 @@
     flex: none;
     min-height: 52px;
     padding: 8px 24px 8px 32px;
-    background: linear-gradient(90deg, rgba(61, 36, 22, .9), rgba(42, 28, 16, .65));
-    border-bottom: 1px solid rgba(255, 90, 45, .28);
+    background: linear-gradient(90deg, rgba(15, 51, 48, .9), rgba(10, 38, 36, .65));
+    border-bottom: 1px solid rgba(45, 212, 191, .28);
   }
 
   .status-icon {
@@ -355,7 +353,7 @@
   .status-title {
     font-size: 13.5px;
     font-weight: 600;
-    color: #ffe8d6;
+    color: #ccfbf1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -363,7 +361,7 @@
 
   .status-meta {
     font-size: 12.5px;
-    color: #c9a88c;
+    color: #7fb8ad;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -395,17 +393,17 @@
     gap: 7px;
     height: 34px;
     padding: 0 14px;
-    border-radius: 9px;
-    border: 1px solid rgba(255, 150, 100, .35);
-    color: #ffd8c2;
+    border-radius: 999px;
+    border: 1px solid rgba(45, 212, 191, .35);
+    color: #99f6e4;
     font-size: 12.5px;
     font-weight: 600;
-    background: rgba(255, 90, 45, .1);
+    background: rgba(45, 212, 191, .1);
     transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .btn-ghost:hover { background: rgba(255, 90, 45, .2); border-color: rgba(255, 150, 100, .55); }
+    .btn-ghost:hover { background: rgba(45, 212, 191, .2); border-color: rgba(45, 212, 191, .55); }
   }
 
   .btn-ghost:active { transform: translateY(1px); }
@@ -694,7 +692,7 @@
     margin-bottom: 10px;
   }
 
-  .field-label .ico { width: 17px; height: 17px; color: #ffb199; }
+  .field-label .ico { width: 17px; height: 17px; color: #5eead4; }
 
   .segmented {
     display: grid;
@@ -710,12 +708,12 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    height: 34px;
-    padding: 0 8px;
-    border-radius: 10px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 999px;
     border: 1px solid var(--line-strong);
     background: rgba(255, 255, 255, .012);
-    color: #ffe9db;
+    color: #ccfbf1;
     font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
@@ -726,18 +724,18 @@
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .seg:hover { background: rgba(255, 255, 255, .05); border-color: rgba(255, 200, 160, .22); }
+    .seg:hover { background: rgba(255, 255, 255, .05); border-color: rgba(45, 212, 191, .28); }
   }
 
   .seg:active { transform: translateY(1px); }
 
   .seg[aria-checked="true"] {
-    background: linear-gradient(180deg, #ff6b35, #e8491d);
-    border-color: rgba(255, 150, 100, .8);
-    color: #fff7ed;
+    background: linear-gradient(180deg, #5eead4, #14b8a6);
+    border-color: rgba(94, 234, 212, .8);
+    color: #0a2e29;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .22),
-      0 6px 18px -8px rgba(232, 73, 29, .85);
+      inset 0 1px 0 rgba(255, 255, 255, .35),
+      0 6px 18px -8px rgba(20, 184, 166, .85);
   }
 
   .seg .ico { width: 15px; height: 15px; }
