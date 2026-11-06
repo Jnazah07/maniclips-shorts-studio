@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#081a18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shortsmith">
+<meta name="application-name" content="Shortsmith">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Shortsmith &middot; Shorts Studio</title>
 <meta name="description" content="Shortsmith Shorts Studio. Pick a ratio, background, length and caption language, then turn one long video into vertical shorts.">
 <meta property="og:type" content="website">
@@ -239,7 +246,34 @@
     flex: none;
     padding: 12px;
     border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
+
+  .install-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border-radius: var(--r-control);
+    border: 1px solid rgba(45, 212, 191, .35);
+    background: rgba(45, 212, 191, .1);
+    color: #99f6e4;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .install-btn:hover { background: rgba(45, 212, 191, .2); border-color: rgba(45, 212, 191, .55); }
+  }
+
+  .install-btn .ico { width: 16px; height: 16px; }
+
+  .install-btn[hidden] { display: none; }
 
   .collapse-btn {
     display: flex;
@@ -266,12 +300,14 @@
   .app[data-collapsed="true"] .brand { padding: 0 16px; }
   .app[data-collapsed="true"] .brand-text,
   .app[data-collapsed="true"] .nav-label,
-  .app[data-collapsed="true"] .collapse-label {
+  .app[data-collapsed="true"] .collapse-label,
+  .app[data-collapsed="true"] .install-label {
     display: none;
   }
   .app[data-collapsed="true"] .nav { padding: 14px 10px; }
   .app[data-collapsed="true"] .nav-item { justify-content: center; padding: 0; }
   .app[data-collapsed="true"] .collapse-btn { justify-content: center; padding: 0; }
+  .app[data-collapsed="true"] .install-btn { justify-content: center; padding: 0; }
 
   .main {
     display: flex;
@@ -1107,6 +1143,10 @@
     </nav>
 
     <div class="sidebar-foot">
+      <button class="install-btn" id="install" type="button" hidden>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="install-label">Install app</span>
+      </button>
       <button class="collapse-btn" id="collapse" aria-expanded="true" aria-controls="app">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
         <span class="collapse-label">Collapse</span>
@@ -1120,7 +1160,7 @@
         <h1 class="topbar-title" id="topbar-title">Shorts Studio</h1>
         <p class="topbar-sub" id="topbar-sub">Configure and generate shorts</p>
       </div>
-      <span class="version">v1.0.0</span>
+      <span class="version">v1.1.0</span>
     </header>
 
     <div class="statusbar" role="status" aria-live="polite">
@@ -1686,6 +1726,63 @@
 
   renderPlayback();
   restoreState();
+
+  /* installable PWA */
+  var installBtn = document.getElementById("install");
+  var deferredPrompt = null;
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+  var isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+  function updateInstallVisibility() {
+    if (isStandalone) {
+      installBtn.hidden = true;
+      return;
+    }
+    installBtn.hidden = !(deferredPrompt || isIOS);
+  }
+
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    updateInstallVisibility();
+  });
+
+  window.addEventListener("appinstalled", function () {
+    deferredPrompt = null;
+    isStandalone = true;
+    updateInstallVisibility();
+    showToast("Shortsmith installed");
+  });
+
+  installBtn.addEventListener("click", function () {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function (choice) {
+        if (choice.outcome === "accepted") {
+          showToast("Installing Shortsmith...");
+        }
+        deferredPrompt = null;
+        updateInstallVisibility();
+      });
+      return;
+    }
+    if (isIOS) {
+      showToast("Tap Share, then Add to Home Screen");
+      return;
+    }
+    showToast("Use your browser menu to install");
+  });
+
+  updateInstallVisibility();
+
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {
+        /* offline support is a progressive enhancement */
+      });
+    });
+  }
+
   booting = false;
 })();
 </script>
