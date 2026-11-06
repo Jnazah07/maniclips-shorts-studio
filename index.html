@@ -750,9 +750,11 @@
 
   .option-card {
     text-align: left;
-    padding: 11px 12px 12px;
-    border-radius: 12px;
-    border: 1px solid var(--line-strong);
+    padding: 12px 12px 12px;
+    border-radius: 16px;
+    border-top: 3px solid transparent;
+    border-inline: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
     background: rgba(255, 255, 255, .012);
     transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
   }
@@ -764,9 +766,10 @@
   .option-card:active { transform: translateY(1px); }
 
   .option-card[aria-checked="true"] {
-    border-color: rgba(255, 110, 60, .9);
-    background: linear-gradient(180deg, rgba(255, 90, 45, .14), rgba(255, 90, 45, .05));
-    box-shadow: inset 0 0 0 1px rgba(255, 110, 60, .22);
+    border-color: rgba(45, 212, 191, .9);
+    border-top-color: var(--accent);
+    background: linear-gradient(180deg, rgba(45, 212, 191, .14), rgba(45, 212, 191, .05));
+    box-shadow: inset 0 0 0 1px rgba(45, 212, 191, .2);
   }
 
   .option-title {
@@ -803,17 +806,17 @@
     width: 52px;
     height: 30px;
     border-radius: var(--r-pill);
-    background: #2b2f3a;
-    color: #b9c1d0;
+    background: #123330;
+    color: #9fc8bf;
     font-size: 11.5px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: .01em;
     transition: background-color var(--t-med) var(--ease), color var(--t-med) var(--ease);
   }
 
   .switch[aria-checked="true"] {
-    background: var(--accent);
-    color: var(--accent-ink);
+    background: linear-gradient(180deg, #5eead4, #14b8a6);
+    color: #0a2e29;
   }
 
   .switch:active { transform: scale(.97); }
@@ -836,12 +839,12 @@
 
   .chip {
     min-width: 44px;
-    height: 32px;
-    padding: 0 12px;
-    border-radius: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
     border: 1px solid var(--line-strong);
     background: rgba(255, 255, 255, .012);
-    color: #ffe9db;
+    color: #ccfbf1;
     font-size: 12.5px;
     font-weight: 700;
     letter-spacing: .04em;
@@ -853,10 +856,10 @@
   }
 
   .chip[aria-checked="true"] {
-    background: linear-gradient(180deg, #ff6b35, #e8491d);
-    border-color: rgba(255, 150, 100, .8);
-    color: #fff7ed;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 6px 14px -8px rgba(232, 73, 29, .8);
+    background: linear-gradient(180deg, #5eead4, #14b8a6);
+    border-color: rgba(94, 234, 212, .8);
+    color: #0a2e29;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 6px 14px -8px rgba(20, 184, 166, .8);
   }
 
   .chips[data-disabled="true"] { opacity: .4; pointer-events: none; }
@@ -873,9 +876,9 @@
   .btn-primary {
     flex: 1;
     height: 44px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, #ff6b35, #e8491d);
-    color: #fff7ed;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #5eead4, #14b8a6);
+    color: #0a2e29;
     font-size: 13.5px;
     font-weight: 700;
     display: inline-flex;
@@ -1080,11 +1083,11 @@
   <aside class="sidebar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
-        <svg class="ico" viewBox="0 0 24 24"><path d="M7 4.5v15l10-7.5z" fill="currentColor" stroke="none"/><path d="M16.5 4.5v15" stroke-width="1.8"/></svg>
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 2l8.7 5v10L12 22l-8.7-5V7z" fill="none" stroke-width="1.8"/><path d="M8 14l6-6v9z" fill="currentColor" stroke="none"/><path d="M8 14h8" stroke-width="1.8"/></svg>
       </span>
       <div class="brand-text">
-        <div class="brand-name">Clipforge</div>
-        <div class="brand-tag">Forge shorts, fast</div>
+        <div class="brand-name">Shortsmith</div>
+        <div class="brand-tag">Cut longs into shorts</div>
       </div>
     </div>
 
@@ -1146,7 +1149,7 @@
                 <div class="screen" id="screen">
                   <div class="screen-fill" id="screen-fill" aria-hidden="true"></div>
                   <img class="screen-media" id="screen-media"
-                       src="https://picsum.photos/seed/clipforge-studio-preview/720/1280"
+                       src="https://picsum.photos/seed/shortsmith-studio-preview/720/1280"
                        alt="Preview footage inside the short" loading="lazy"
                        onerror="this.style.display='none'">
                   <div class="screen-tint" id="screen-tint" hidden></div>
@@ -1374,7 +1377,7 @@
 
   /* remember the last configuration between visits */
 
-  var STORE_KEY = "clipforge.studio.v1";
+  var STORE_KEY = "shortsmith.studio.v1";
 
   function saveState() {
     try {
