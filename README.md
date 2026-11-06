@@ -40,21 +40,6 @@ Files that make it installable:
 Install prompts require HTTPS (or `localhost` / `127.0.0.1`) and the
 registration served over HTTP. Use the server above for `127.0.0.1`.
 
-## Deploy as a website
-
-The `index.html` is the site. Deploy the folder as-is.
-
-- **Netlify**: drag this folder onto https://app.netlify.com/drop
-- **GitHub Pages**: push the folder to a repo, Settings > Pages > deploy
-  from branch, root. The file has Open Graph + favicon meta already.
-- **Vercel**: `npx vercel` in the folder, framework preset "Other".
-- **Any static host**: upload the folder as the site root.
-
-`server.js` is only for local preview and is not needed in production.
-You can exclude it when publishing.
-
-`netlify.toml` adds security headers and `no-cache` for the manifest and
-service worker so updates are picked up promptly.
 
 ## Features
 
