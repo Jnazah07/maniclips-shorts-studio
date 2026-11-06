@@ -4,48 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#141a2a">
-<title>Mani Clips &middot; Shorts Studio</title>
-<meta name="description" content="Mani Clips Shorts Studio. Pick a ratio, background, length and caption language, then turn one long video into vertical shorts.">
+<meta name="theme-color" content="#121008">
+<title>Clipforge &middot; Shorts Studio</title>
+<meta name="description" content="Clipforge Shorts Studio. Pick a ratio, background, length and caption language, then turn one long video into vertical shorts.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Mani Clips - Shorts Studio">
+<meta property="og:title" content="Clipforge - Shorts Studio">
 <meta property="og:description" content="Turn one long video into vertical shorts. Choose the frame, length and captions, then preview exactly how viewers will see it.">
-<meta property="og:site_name" content="Mani Clips">
+<meta property="og:site_name" content="Clipforge">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='32%25' cy='26%25' r='75%25'%3E%3Cstop offset='0' stop-color='%236ea2ff'/%3E%3Cstop offset='.46' stop-color='%233b62c6'/%3E%3Cstop offset='1' stop-color='%231d2c58'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='16' fill='url(%23g)'/%3E%3Cpath d='M16 7l1.9 4.3L22 13.2l-4.1 1.9L16 19.4l-1.9-4.3L10 13.2l4.1-1.9z' fill='%23e8f0ff'/%3E%3Cpath d='M21.6 19.4l.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7z' fill='%23e8f0ff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff7a3d'/%3E%3Cstop offset='1' stop-color='%23e83a1f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='url(%23g)'/%3E%3Cpath d='M11 9.5v13l10-6.5z' fill='%23fff7ed'/%3E%3Cpath d='M19 9.5v13' stroke='%23fff7ed' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --font: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font: "Plus Jakarta Sans", "Sora", system-ui, -apple-system, sans-serif;
+    --font-display: "Sora", "Plus Jakarta Sans", system-ui, sans-serif;
 
-    --bg-top: #222b43;
-    --bg-mid: #0a1122;
-    --bg-bottom: #111a24;
+    --bg-top: #2a1f14;
+    --bg-mid: #17120c;
+    --bg-bottom: #0e0c09;
 
-    --sidebar: #17181d;
-    --surface: #111316;
-    --surface-raised: #15161b;
-    --surface-hover: #1a1c22;
+    --sidebar: #171310;
+    --surface: #141210;
+    --surface-raised: #1a1714;
+    --surface-hover: #201b17;
 
-    --line: rgba(255, 255, 255, .065);
-    --line-strong: rgba(255, 255, 255, .1);
+    --line: rgba(255, 233, 210, .08);
+    --line-strong: rgba(255, 233, 210, .14);
 
-    --text: #f2f4f8;
-    --text-2: #9ba4b5;
-    --text-3: #6f7889;
+    --text: #fdf6ec;
+    --text-2: #b8ab9a;
+    --text-3: #8a7f72;
 
-    --accent: #5a91ff;
-    --accent-ink: #0a1020;
-    --accent-soft: #28385e;
-    --accent-wash: rgba(90, 145, 255, .08);
+    --accent: #ff5a2d;
+    --accent-ink: #fff4ec;
+    --accent-soft: #3d2416;
+    --accent-wash: rgba(255, 90, 45, .1);
 
-    --danger: #f2777a;
-    --ok: #4ec9a0;
+    --danger: #ff6b5e;
+    --ok: #a8d86e;
 
-    --r-card: 16px;
-    --r-control: 12px;
+    --r-card: 20px;
+    --r-control: 10px;
     --r-pill: 999px;
 
     --ease: cubic-bezier(.23, 1, .32, 1);
@@ -72,7 +73,8 @@
     font-family: var(--font);
     color: var(--text);
     background:
-      radial-gradient(1100px 520px at 58% -12%, #2b3760 0%, rgba(43, 55, 96, 0) 62%),
+      radial-gradient(1100px 520px at 58% -12%, #4a2c12 0%, rgba(74, 44, 18, 0) 62%),
+      radial-gradient(700px 400px at 10% 100%, #382114 0%, rgba(56, 33, 20, 0) 60%),
       linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 34%, var(--bg-bottom) 100%);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
@@ -133,7 +135,7 @@
 
   .skip-link:focus-visible { transform: translateY(0); }
 
-  ::selection { background: rgba(90, 145, 255, .35); color: #f8faff; }
+  ::selection { background: rgba(255, 90, 45, .38); color: #fff7ed; }
 
   /* ---------- shell ---------- */
 
@@ -172,22 +174,22 @@
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 50%;
-    color: #cfe0ff;
-    background:
-      radial-gradient(circle at 32% 26%, #6ea2ff 0%, #3b62c6 46%, #1d2c58 100%);
+    border-radius: 11px;
+    color: #fff7ed;
+    background: linear-gradient(135deg, #ff8a3d 0%, #e8491d 100%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .28),
-      0 8px 18px -8px rgba(60, 105, 220, .8);
+      inset 0 1px 0 rgba(255, 255, 255, .3),
+      0 8px 18px -8px rgba(232, 73, 29, .85);
   }
 
-  .brand-mark .ico { width: 22px; height: 22px; stroke-width: 1.6; }
+  .brand-mark .ico { width: 22px; height: 22px; stroke-width: 1.8; }
 
   .brand-text { min-width: 0; }
   .brand-name {
+    font-family: var(--font-display);
     font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -.01em;
+    font-weight: 700;
+    letter-spacing: -.015em;
     white-space: nowrap;
   }
   .brand-tag {
@@ -228,9 +230,9 @@
   .nav-item:active { background: rgba(255, 255, 255, .06); }
 
   .nav-item[aria-current="page"] {
-    color: #9dbcff;
-    background: var(--accent-soft);
-    box-shadow: inset 0 0 0 1px rgba(122, 164, 255, .18);
+    color: #ffb199;
+    background: linear-gradient(90deg, rgba(255, 90, 45, .2), rgba(255, 90, 45, .08));
+    box-shadow: inset 0 0 0 1px rgba(255, 110, 60, .3);
   }
 
   .nav-item .ico { width: 19px; height: 19px; }
@@ -291,15 +293,16 @@
     flex: none;
     padding: 0 32px;
     border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(35, 45, 71, .78), rgba(30, 40, 66, .5));
+    background: linear-gradient(180deg, rgba(42, 31, 20, .85), rgba(23, 18, 12, .6));
     backdrop-filter: blur(8px);
   }
 
   .topbar-title {
     margin: 0;
-    font-size: 15.5px;
-    font-weight: 600;
-    letter-spacing: -.012em;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.015em;
   }
 
   .topbar-sub {
@@ -314,10 +317,10 @@
     border: 1px solid var(--line-strong);
     border-radius: var(--r-pill);
     font-size: 12px;
-    font-weight: 600;
-    color: #c7cede;
-    letter-spacing: .01em;
-    background: rgba(255, 255, 255, .02);
+    font-weight: 700;
+    color: #ffd9c2;
+    letter-spacing: .02em;
+    background: rgba(255, 90, 45, .08);
   }
 
   /* ---------- status banner ---------- */
@@ -329,8 +332,8 @@
     flex: none;
     min-height: 52px;
     padding: 8px 24px 8px 32px;
-    background: linear-gradient(90deg, rgba(24, 36, 67, .92), rgba(22, 34, 62, .65));
-    border-bottom: 1px solid rgba(90, 145, 255, .16);
+    background: linear-gradient(90deg, rgba(61, 36, 22, .9), rgba(42, 28, 16, .65));
+    border-bottom: 1px solid rgba(255, 90, 45, .28);
   }
 
   .status-icon {
@@ -352,7 +355,7 @@
   .status-title {
     font-size: 13.5px;
     font-weight: 600;
-    color: #e8efff;
+    color: #ffe8d6;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -360,7 +363,7 @@
 
   .status-meta {
     font-size: 12.5px;
-    color: #93a2c4;
+    color: #c9a88c;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -393,16 +396,16 @@
     height: 34px;
     padding: 0 14px;
     border-radius: 9px;
-    border: 1px solid rgba(150, 180, 255, .28);
-    color: #cddcff;
+    border: 1px solid rgba(255, 150, 100, .35);
+    color: #ffd8c2;
     font-size: 12.5px;
-    font-weight: 500;
-    background: rgba(90, 145, 255, .07);
+    font-weight: 600;
+    background: rgba(255, 90, 45, .1);
     transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .btn-ghost:hover { background: rgba(90, 145, 255, .16); border-color: rgba(150, 180, 255, .45); }
+    .btn-ghost:hover { background: rgba(255, 90, 45, .2); border-color: rgba(255, 150, 100, .55); }
   }
 
   .btn-ghost:active { transform: translateY(1px); }
@@ -422,10 +425,11 @@
 
   .page-title {
     margin: 0;
+    font-family: var(--font-display);
     font-size: 30px;
-    line-height: 1.14;
-    font-weight: 600;
-    letter-spacing: -.028em;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -.03em;
   }
 
   .page-sub {
@@ -690,7 +694,7 @@
     margin-bottom: 10px;
   }
 
-  .field-label .ico { width: 17px; height: 17px; color: #9dbcff; }
+  .field-label .ico { width: 17px; height: 17px; color: #ffb199; }
 
   .segmented {
     display: grid;
@@ -708,12 +712,12 @@
     gap: 7px;
     height: 34px;
     padding: 0 8px;
-    border-radius: var(--r-control);
+    border-radius: 10px;
     border: 1px solid var(--line-strong);
     background: rgba(255, 255, 255, .012);
-    color: #dfe5f0;
+    color: #ffe9db;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
     transition:
       background-color var(--t-fast) var(--ease),
@@ -722,18 +726,18 @@
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .seg:hover { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .16); }
+    .seg:hover { background: rgba(255, 255, 255, .05); border-color: rgba(255, 200, 160, .22); }
   }
 
   .seg:active { transform: translateY(1px); }
 
   .seg[aria-checked="true"] {
-    background: var(--accent);
-    border-color: transparent;
-    color: var(--accent-ink);
+    background: linear-gradient(180deg, #ff6b35, #e8491d);
+    border-color: rgba(255, 150, 100, .8);
+    color: #fff7ed;
     box-shadow:
-      0 0 0 1px rgba(120, 165, 255, .55),
-      0 10px 24px -12px rgba(90, 145, 255, .9);
+      inset 0 1px 0 rgba(255, 255, 255, .22),
+      0 6px 18px -8px rgba(232, 73, 29, .85);
   }
 
   .seg .ico { width: 15px; height: 15px; }
@@ -749,7 +753,7 @@
   .option-card {
     text-align: left;
     padding: 11px 12px 12px;
-    border-radius: var(--r-control);
+    border-radius: 12px;
     border: 1px solid var(--line-strong);
     background: rgba(255, 255, 255, .012);
     transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
@@ -762,9 +766,9 @@
   .option-card:active { transform: translateY(1px); }
 
   .option-card[aria-checked="true"] {
-    border-color: rgba(90, 145, 255, .85);
-    background: var(--accent-wash);
-    box-shadow: 0 0 0 1px rgba(90, 145, 255, .25);
+    border-color: rgba(255, 110, 60, .9);
+    background: linear-gradient(180deg, rgba(255, 90, 45, .14), rgba(255, 90, 45, .05));
+    box-shadow: inset 0 0 0 1px rgba(255, 110, 60, .22);
   }
 
   .option-title {
@@ -836,13 +840,13 @@
     min-width: 44px;
     height: 32px;
     padding: 0 12px;
-    border-radius: var(--r-pill);
+    border-radius: 8px;
     border: 1px solid var(--line-strong);
     background: rgba(255, 255, 255, .012);
-    color: #dfe5f0;
+    color: #ffe9db;
     font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: .02em;
+    font-weight: 700;
+    letter-spacing: .04em;
     transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
   }
 
@@ -851,10 +855,10 @@
   }
 
   .chip[aria-checked="true"] {
-    background: var(--accent);
-    border-color: transparent;
-    color: var(--accent-ink);
-    box-shadow: 0 8px 20px -12px rgba(90, 145, 255, .9);
+    background: linear-gradient(180deg, #ff6b35, #e8491d);
+    border-color: rgba(255, 150, 100, .8);
+    color: #fff7ed;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 6px 14px -8px rgba(232, 73, 29, .8);
   }
 
   .chips[data-disabled="true"] { opacity: .4; pointer-events: none; }
@@ -871,11 +875,11 @@
   .btn-primary {
     flex: 1;
     height: 44px;
-    border-radius: var(--r-control);
-    background: var(--accent);
-    color: var(--accent-ink);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ff6b35, #e8491d);
+    color: #fff7ed;
     font-size: 13.5px;
-    font-weight: 600;
+    font-weight: 700;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1078,11 +1082,11 @@
   <aside class="sidebar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
-        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l1.9 4.3L18 9.2l-4.1 1.9L12 15.4l-1.9-4.3L6 9.2l4.1-1.9z"/><path d="M18.5 15.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/><path d="M5.5 16.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg>
+        <svg class="ico" viewBox="0 0 24 24"><path d="M7 4.5v15l10-7.5z" fill="currentColor" stroke="none"/><path d="M16.5 4.5v15" stroke-width="1.8"/></svg>
       </span>
       <div class="brand-text">
-        <div class="brand-name">Mani Clips</div>
-        <div class="brand-tag">Long video &rarr; short clips</div>
+        <div class="brand-name">Clipforge</div>
+        <div class="brand-tag">Forge shorts, fast</div>
       </div>
     </div>
 
@@ -1144,7 +1148,7 @@
                 <div class="screen" id="screen">
                   <div class="screen-fill" id="screen-fill" aria-hidden="true"></div>
                   <img class="screen-media" id="screen-media"
-                       src="https://picsum.photos/seed/maniclips-studio-preview/720/1280"
+                       src="https://picsum.photos/seed/clipforge-studio-preview/720/1280"
                        alt="Preview footage inside the short" loading="lazy"
                        onerror="this.style.display='none'">
                   <div class="screen-tint" id="screen-tint" hidden></div>
@@ -1372,7 +1376,7 @@
 
   /* remember the last configuration between visits */
 
-  var STORE_KEY = "maniclips.studio.v1";
+  var STORE_KEY = "clipforge.studio.v1";
 
   function saveState() {
     try {

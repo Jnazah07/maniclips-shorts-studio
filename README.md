@@ -1,11 +1,11 @@
-# Mani Clips - Shorts Studio (web edition)
+# Clipforge - Shorts Studio (web edition)
 
-A web recreation of the Mani Clips desktop Shorts Studio screen, built from
+Rebranded web recreation of the desktop Shorts Studio screen, built from
 runtime observation of `maniclips-desktop.exe` (Tauri v2 / WebView2).
 
 Single self-contained page: `index.html` with inline CSS and JS. No build
-step, no dependencies except Google Fonts (Inter) loaded from CDN, with a
-system-ui fallback if offline.
+step, no dependencies except Google Fonts (Sora + Plus Jakarta Sans) loaded
+from CDN, with system fallbacks if offline.
 
 ## Run locally
 
@@ -22,7 +22,7 @@ recommended so `localStorage` settings persistence is consistent.
 
 The `index.html` is the site. Deploy the folder as-is.
 
-- **Netlify**: drag the `maniclips` folder onto https://app.netlify.com/drop
+- **Netlify**: drag this folder onto https://app.netlify.com/drop
 - **GitHub Pages**: push `index.html` to a repo, Settings > Pages > deploy
   from branch, root. The file has Open Graph + favicon meta already.
 - **Vercel**: `npx vercel` in the folder, framework preset "Other".
@@ -43,3 +43,9 @@ You can exclude it when publishing.
 - Settings persist in `localStorage` across visits
 - Responsive: desktop 2-column, tablet icon rail + stacked, phone bottom
   tab bar, touch targets, reduced-motion and print support
+
+## Rebrand
+
+Name **Clipforge**, warm charcoal + ember orange accent `#ff5a2d`,
+square logo with cut + play mark, Sora display / Plus Jakarta Sans body,
+square segmented controls, left-accent option cards, square language chips.
