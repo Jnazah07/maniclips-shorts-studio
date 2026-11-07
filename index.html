@@ -744,6 +744,7 @@
     gap: 10px;
   }
 
+  .segmented[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .segmented[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .segmented[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .segmented.bg-cols { grid-template-columns: .95fr .95fr 1.25fr; }
@@ -1197,6 +1198,14 @@
           <p class="page-sub">Pick your style, then generate shorts from the full video</p>
         </div>
 
+        <div class="upload-zone" id="upload-zone" style="margin-bottom:16px;padding:16px;border:1px dashed var(--line-strong);border-radius:16px;background:var(--surface)">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <label for="video-input" class="btn-ghost" style="display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid rgba(45,212,191,.35);background:rgba(45,212,191,.1);color:#99f6e4;font-size:12.5px;font-weight:600;cursor:pointer">Upload video</label>
+            <span id="source-chip" style="font-size:12.5px;color:var(--text-2)">No video yet. Drop a file or click Upload.</span>
+          </div>
+          <input type="file" id="video-input" accept="video/*" class="sr-only">
+        </div>
+
         <div class="workspace">
 
           <section class="preview-card" aria-label="Phone preview">
@@ -1208,6 +1217,7 @@
                        src="https://picsum.photos/seed/shortsmith-studio-preview/720/1280"
                        alt="Preview footage inside the short" loading="lazy"
                        onerror="this.style.display='none'">
+                  <video class="screen-media" id="preview-video" playsinline muted loop hidden style="display:none"></video>
                   <div class="screen-tint" id="screen-tint" hidden></div>
                   <div class="island" aria-hidden="true"></div>
 
@@ -1274,7 +1284,8 @@
                   <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 10v4l2.4 1.6"/><path d="M9.5 2.5h5"/></svg>
                   <span>Short length</span>
                 </div>
-                <div class="segmented" data-cols="3" role="radiogroup" aria-labelledby="len-label" data-group="length">
+                <div class="segmented" data-cols="4" role="radiogroup" aria-labelledby="len-label" data-group="length">
+                  <button class="seg" role="radio" aria-checked="false" data-value="20s">20s</button>
                   <button class="seg" role="radio" aria-checked="true" data-value="30s">30s</button>
                   <button class="seg" role="radio" aria-checked="false" data-value="45s">45s</button>
                   <button class="seg" role="radio" aria-checked="false" data-value="60s">60s</button>
@@ -1382,6 +1393,12 @@
   var langChips = document.getElementById("lang-chips");
   var toast = document.getElementById("toast");
   var imageInput = document.getElementById("image-input");
+  var videoInput = document.getElementById("video-input");
+  var uploadZone = document.getElementById("upload-zone");
+  var sourceChip = document.getElementById("source-chip");
+  var previewVideo = document.getElementById("preview-video");
+  var statusTitle = document.querySelector(".status-title");
+  var statusMeta = document.getElementById("status-meta");
 
   var state = {
     ratio: "9:16",
@@ -1391,8 +1408,50 @@
     captions: true,
     lang: "EN",
     progress: 0.12,
-    playing: false
+    playing: false,
+    videoUrl: null,
+    videoFile: null,
+    duration: 0,
+    segments: [],
+    transcribed: false,
+    shorts: []
   };
+
+  function getLength() { return state.length; }
+  function setVideo(url, meta) {
+    state.videoUrl = url;
+    if (meta && meta.duration) state.duration = meta.duration;
+    if (meta && meta.file) state.videoFile = meta.file;
+    if (url) {
+      previewVideo.src = url;
+      previewVideo.hidden = false;
+      previewVideo.style.display = "";
+      screenMedia.style.display = "none";
+    }
+  }
+  window.__shortsmith = { state: state, setVideo: setVideo, getLength: getLength };
+
+  function loadVideoFile(file) {
+    if (!file || !file.type || file.type.indexOf("video/") !== 0) { showToast("Pick a video file"); return; }
+    if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
+    var url = URL.createObjectURL(file);
+    state.transcribed = false; state.segments = [];
+    var temp = document.createElement("video");
+    temp.preload = "metadata"; temp.src = url;
+    temp.addEventListener("loadedmetadata", function () {
+      setVideo(url, { duration: temp.duration, file: file });
+      sourceChip.textContent = file.name + " · " + Math.round((file.size/1024/1024)*10)/10 + " MB · " + Math.round(temp.duration) + "s · " + temp.videoWidth + "×" + temp.videoHeight;
+      statusTitle.textContent = "Ready to transcribe";
+      statusMeta.textContent = "Upload ready. Use Transcribe to make captions, or turn captions off to cut now.";
+      showToast("Video loaded");
+    }, { once: true });
+  }
+  if (videoInput) videoInput.addEventListener("change", function () { loadVideoFile(videoInput.files && videoInput.files[0]); });
+  if (uploadZone) {
+    uploadZone.addEventListener("dragover", function (e) { e.preventDefault(); uploadZone.style.borderColor = "var(--accent)"; });
+    uploadZone.addEventListener("dragleave", function () { uploadZone.style.borderColor = ""; });
+    uploadZone.addEventListener("drop", function (e) { e.preventDefault(); uploadZone.style.borderColor = ""; if (e.dataTransfer && e.dataTransfer.files[0]) loadVideoFile(e.dataTransfer.files[0]); });
+  }
 
   var toastTimer = null;
   var booting = true;
@@ -1604,22 +1663,36 @@
   }
 
   function tick() {
-    state.progress = Math.min(1, state.progress + 0.004);
+    if (state.videoUrl && previewVideo) {
+      if (!previewVideo.duration) return;
+      state.progress = previewVideo.currentTime / previewVideo.duration;
+    } else {
+      state.progress = Math.min(1, state.progress + 0.004);
+    }
     renderPlayback();
     if (state.progress >= 1) {
       stop();
     }
   }
 
-  function stop() {
-    state.playing = false;
-    clearInterval(playTimer);
-    playTimer = null;
-    playIcon.innerHTML = '<path d="M8 5.5v13l11-6.5z"/>';
-    playBtn.setAttribute("aria-label", "Play short");
-  }
+  if (previewVideo) previewVideo.addEventListener("timeupdate", function () {
+    if (!previewVideo.duration) return;
+    state.progress = previewVideo.currentTime / previewVideo.duration;
+    renderPlayback();
+  });
 
   playBtn.addEventListener("click", function () {
+    if (state.videoUrl && previewVideo) {
+      if (!previewVideo.paused) { previewVideo.pause(); }
+      else { previewVideo.play().catch(function () {}); }
+      if (state.playing) { stop(); } else {
+        state.playing = true;
+        playIcon.innerHTML = '<path d="M8.5 5.5h3v13h-3zM13.5 5.5h3v13h-3z"/>';
+        playBtn.setAttribute("aria-label", "Pause short");
+        playTimer = setInterval(tick, 120);
+      }
+      return;
+    }
     if (state.playing) {
       stop();
       return;
@@ -1630,9 +1703,21 @@
     playTimer = setInterval(tick, 120);
   });
 
+  function stop() {
+    state.playing = false;
+    if (previewVideo) previewVideo.pause();
+    clearInterval(playTimer);
+    playTimer = null;
+    playIcon.innerHTML = '<path d="M8 5.5v13l11-6.5z"/>';
+    playBtn.setAttribute("aria-label", "Play short");
+  }
+
   function scrubTo(clientX) {
     var rect = scrub.getBoundingClientRect();
     state.progress = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    if (state.videoUrl && previewVideo && previewVideo.duration) {
+      try { previewVideo.currentTime = state.progress * previewVideo.duration; } catch (e) {}
+    }
     renderPlayback();
   }
 
