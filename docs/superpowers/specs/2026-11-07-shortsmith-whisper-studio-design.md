@@ -14,7 +14,7 @@ Approach B was picked: real speech transcription with Whisper WASM in the browse
 - Drop / pick a long video (file link / picker / drag), preview it in the phone frame, play and scrub it.
 - Transcribe speech in-browser with Whisper WASM, show segments with timestamps, let the caption language select EN / UR / HI / UR-R / HI-R (decided: picker = spoken language, captions shown in that same native script; UR-R/HI-R behave as UR/HI with a Roman label only — no transliteration, no English translate).
 - Burn captions onto exports at the draggable caption position, with multiple caption styles and fonts, editable before export.
-- Honor existing settings: ratio 9:16 / 1:1 / 16:9, background blur / solid / imported image, video fit blur-fill / full-screen, length 20s / 30s / 45s / 60s (four options), captions on/off.
+- Honor existing settings: ratio 9:16 / 1:1 / 16:9, background blur / solid / imported image, video fit blur-fill / full-screen, length 20s / 30s / 45s / 60s (four options, decided 2026-11-07), captions on/off.
 - Generate real vertical shorts as downloadable files via Canvas + MediaRecorder (WebM primary, with MP4 where supported). Shorts appear in a list with play and download.
 - Make the status bar truthful: real progress for model load, transcription, and per-clip rendering. No fake 23% loop.
 - Keep installable offline shell, manifest, icons, service worker, `v1.1.0` bump to model-aware versioning if needed.
@@ -50,7 +50,7 @@ Approach B was picked: real speech transcription with Whisper WASM in the browse
 
 **B. Cut + record + Whisper WASM — chosen.** `@xenova/transformers` (or current equivalent) with `whisper-tiny` / `whisper-base` pipeline, `pipeline("automatic-speech-recognition", model)`, WASM backend, WebGPU where available. Transcribes the uploaded file’s audio (extracted via `<video>` + AudioContext / `decodeAudioData` downsampled to 16kHz mono), returns timestamped segments. Words are aligned to caption band at user-drag Y. Each short is an interval [start, start + length] chosen from segments (evenly spaced candidate starts, no smart hook scoring in v1 beyond even spacing + avoid cutting mid-word where timestamps allow). Rendering draws video frame → cover/blur background → caption text → `canvas.captureStream(30)` + optional audio track (video element `captureStream`) → MediaRecorder. Lists each clip as object URL + download `<a>`.
 
-Trade-offs: first run ~75 MB (tiny) to ~500 MB (base) download with progress; transcription minutes-long on CPU, faster on WebGPU; 30/45/60s clips export in near real-time (not faster, since recording is realtime). Needs memory guard + cancel.
+Trade-offs: first run ~75 MB (tiny) to ~500 MB (base) download with progress; transcription minutes-long on CPU, faster on WebGPU; 20/30/45/60s clips export in near real-time (not faster, since recording is realtime). Needs memory guard + cancel.
 
 **C. Mic captions only (SpeechRecognition) — rejected.** Chrome-only, live mic only, no file transcription, no offline, no UR/HI-R reliability.
 
