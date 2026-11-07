@@ -1329,6 +1329,18 @@
                   <button class="chip" role="radio" aria-checked="false" data-value="UR-R">UR-R</button>
                   <button class="chip" role="radio" aria-checked="false" data-value="HI-R">HI-R</button>
                 </div>
+                <p class="helper">Spoken language. Captions show in that same script. UR-R/HI-R use Urdu/Hindi script.</p>
+              </div>
+
+              <div class="field">
+                <div class="field-label"><span>Transcribe</span></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn-ghost" id="transcribe" type="button">Transcribe</button>
+                  <button class="btn-ghost" id="transcribe-cancel" type="button" hidden>Cancel</button>
+                </div>
+                <p class="helper" id="transcribe-helper">Needs Whisper (Tiny ~75 MB). Captions Off skips transcription.</p>
+                <div id="segments-list" style="margin-top:10px;max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;display:none"></div>
+                <textarea id="transcript-text" rows="4" placeholder="Edit captions here, one segment per line, or paste a transcript" style="width:100%;margin-top:10px;min-height:88px;padding:10px;border-radius:12px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text);font:inherit" aria-label="Editable transcript"></textarea>
               </div>
 
             </div>
@@ -1600,9 +1612,98 @@
     captionsSwitch.textContent = state.captions ? "On" : "Off";
     langChips.dataset.disabled = String(!state.captions);
     captionBand.style.display = state.captions ? "" : "none";
+    document.getElementById("transcribe").style.display = state.captions ? "" : "none";
+    document.getElementById("transcribe-helper").textContent = state.captions ? "Needs Whisper (Tiny ~75 MB). Captions Off skips transcription." : "Captions Off: Generate cuts now, no transcription.";
+    if (!state.captions) { state.transcribed = true; statusTitle.textContent = "Ready to generate"; statusMeta.textContent = "Captions off. Click Generate to cut clips."; }
     showToast(state.captions ? "Auto captions on" : "Auto captions off");
     saveState();
   });
+
+  /* transcribe (Whisper WASM) */
+  var transcribeBtn = document.getElementById("transcribe");
+  var transcribeCancel = document.getElementById("transcribe-cancel");
+  var segmentsList = document.getElementById("segments-list");
+  var transcriptText = document.getElementById("transcript-text");
+  var transcribeCancelFlag = false, whisperPipeline = null;
+
+  function renderSegments() {
+    segmentsList.innerHTML = "";
+    segmentsList.style.display = state.segments.length ? "" : "none";
+    state.segments.forEach(function (seg, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.style.cssText = "display:block;width:100%;text-align:left;padding:8px 10px;margin:4px 0;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text);min-height:44px";
+      b.textContent = "[" + seg.start.toFixed(1) + "s] " + seg.text;
+      b.addEventListener("click", function () { if (previewVideo) { try { previewVideo.currentTime = seg.start; previewVideo.play().catch(function(){}); } catch(e){} } });
+      segmentsList.appendChild(b);
+    });
+    transcriptText.value = state.segments.map(function (s) { return s.text; }).join("\n");
+    if (state.segments.length) captionBand.querySelector(".caption-word").textContent = state.segments[0].text.slice(0, 18);
+  }
+
+  transcriptText.addEventListener("input", function () {
+    var lines = transcriptText.value.split("\n").map(function (t) { return t.trim(); }).filter(Boolean);
+    if (!lines.length) { state.segments = []; return; }
+    if (!state.segments.length) {
+      state.segments = lines.map(function (t, i) { return { start: i * 5, end: i * 5 + 5, text: t }; });
+    } else {
+      lines.forEach(function (t, i) { if (state.segments[i]) state.segments[i].text = t; });
+    }
+    state.transcribed = true;
+    statusTitle.textContent = "Transcript ready";
+    statusMeta.textContent = "Editable captions are set. Click Generate to export.";
+  });
+
+  function setStatus(title, meta, pct) {
+    statusTitle.textContent = title;
+    statusMeta.textContent = meta;
+    var f = document.getElementById("status-fill");
+    if (f) f.style.transform = "scaleX(" + Math.max(0, Math.min(1, pct)) + ")";
+  }
+
+  async function transcribeVideo() {
+    if (!state.videoUrl) { showToast("Upload a video first"); return; }
+    if (!state.captions) { state.transcribed = true; setStatus("Ready to generate", "Captions off. Click Generate.", 1); return; }
+    transcribeCancelFlag = false;
+    transcribeBtn.disabled = true; transcribeCancel.hidden = false;
+    try {
+      setStatus("Loading Whisper", "Downloading model ~75 MB, first run only...", 0.05);
+      if (!whisperPipeline) {
+        var mod = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm");
+        var pipeline = mod.pipeline;
+        whisperPipeline = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny", { dtype: "q8", progress_callback: function (p) { if (transcribeCancelFlag) return; var pct = (p.progress || 0) / 100 * 0.4 + 0.05; setStatus("Loading Whisper", "Downloading model " + Math.round(p.progress || 0) + "%", pct); } });
+      }
+      if (transcribeCancelFlag) throw new Error("cancelled");
+      setStatus("Transcribing", "Extracting audio...", 0.5);
+      var buf = await state.videoFile.arrayBuffer();
+      var ac = new (window.AudioContext || window.webkitAudioContext)();
+      var decoded = await ac.decodeAudioData(buf);
+      var len = decoded.sampleRate * decoded.duration;
+      var mono = decoded.getChannelData(0);
+      var outRate = 16000;
+      var step = decoded.sampleRate / outRate;
+      var outLen = Math.floor(mono.length / step);
+      var pcm = new Float32Array(outLen);
+      for (var i = 0; i < outLen; i++) pcm[i] = mono[Math.floor(i * step)];
+      var langMap = { EN: "english", UR: "urdu", HI: "hindi", "UR-R": "urdu", "HI-R": "hindi" };
+      setStatus("Transcribing", "Running Whisper... (may take minutes)", 0.6);
+      var res = await whisperPipeline(pcm, { task: "transcribe", language: langMap[state.lang] || "english", chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
+      if (transcribeCancelFlag) throw new Error("cancelled");
+      var chunks = res.chunks || (res.text ? [{ text: res.text, timestamp: [0, decoded.duration] }] : []);
+      state.segments = chunks.map(function (c) { return { start: c.timestamp ? c.timestamp[0] : 0, end: c.timestamp ? c.timestamp[1] : 5, text: (c.text || "").trim() }; }).filter(function (c) { return c.text; });
+      if (!state.segments.length) { setStatus("No speech found", "Paste a transcript below to continue.", 0); showToast("No speech found"); return; }
+      state.transcribed = true;
+      renderSegments();
+      setStatus("Transcript ready", state.segments.length + " segments. Click Generate to export.", 1);
+    } catch (e) {
+      if (e && e.message === "cancelled") { setStatus("Transcribe cancelled", "Paste a transcript or try again.", 0); }
+      else { setStatus("Transcribe failed", "Check connection and retry. Paste transcript to continue.", 0); showToast("Transcribe failed"); }
+    } finally {
+      transcribeBtn.disabled = false; transcribeCancel.hidden = true;
+    }
+  }
+  if (transcribeBtn) transcribeBtn.addEventListener("click", transcribeVideo);
+  if (transcribeCancel) transcribeCancel.addEventListener("click", function () { transcribeCancelFlag = true; });
 
   /* caption drag */
 
