@@ -1333,6 +1333,28 @@
               </div>
 
               <div class="field">
+                <div class="field-label" id="capstyle-label"><span>Caption style</span></div>
+                <div class="segmented" data-cols="3" role="radiogroup" aria-labelledby="capstyle-label" data-group="capstyle">
+                  <button class="seg" role="radio" aria-checked="true" data-value="teal">Teal Pill</button>
+                  <button class="seg" role="radio" aria-checked="false" data-value="yellow">Bold Yellow</button>
+                  <button class="seg" role="radio" aria-checked="false" data-value="minimal">Minimal White</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label" id="capfont-label"><span>Caption font</span></div>
+                <div class="segmented" data-cols="3" role="radiogroup" aria-labelledby="capfont-label" data-group="capfont">
+                  <button class="seg" role="radio" aria-checked="true" data-value="space">Space Grotesk</button>
+                  <button class="seg" role="radio" aria-checked="false" data-value="inter">Inter</button>
+                  <button class="seg" role="radio" aria-checked="false" data-value="system">System Bold</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+                  <span style="font-size:12.5px;color:var(--text-2)">Size</span>
+                  <input type="range" id="cap-size" min="18" max="44" value="28" style="flex:1;min-height:44px" aria-label="Caption size">
+                </div>
+              </div>
+
+              <div class="field">
                 <div class="field-label"><span>Transcribe</span></div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn-ghost" id="transcribe" type="button">Transcribe</button>
@@ -1419,6 +1441,9 @@
     fit: "blur",
     captions: true,
     lang: "EN",
+    capStyle: "teal",
+    capFont: "space",
+    capSize: 28,
     progress: 0.12,
     playing: false,
     videoUrl: null,
@@ -1515,6 +1540,9 @@
         fit: state.fit,
         captions: state.captions,
         lang: state.lang,
+        capStyle: state.capStyle,
+        capFont: state.capFont,
+        capSize: state.capSize,
         capY: captionBand.getAttribute("aria-valuenow"),
         collapsed: app.dataset.collapsed
       }));
@@ -1522,6 +1550,48 @@
       /* private mode or storage disabled: settings just do not persist */
     }
   }
+
+  function drawCaption(ctx, text, yPx, w, h) {
+    if (!text) return;
+    var size = (state.capSize || 28) * (w / 720);
+    var fontMap = { space: '"Space Grotesk","Inter",system-ui,sans-serif', inter: '"Inter",system-ui,sans-serif', system: 'system-ui,sans-serif' };
+    ctx.font = '700 ' + size + 'px ' + (fontMap[state.capFont] || fontMap.space);
+    var rtl = state.lang === "UR" || state.lang === "UR-R" || state.lang === "HI" || state.lang === "HI-R";
+    ctx.direction = rtl ? "rtl" : "ltr";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    var words = text.split(/\s+/), lines = [], cur = "";
+    for (var i = 0; i < words.length; i++) {
+      var t = cur ? cur + " " + words[i] : words[i];
+      if (ctx.measureText(t).width > w * 0.86 && cur) { lines.push(cur); cur = words[i]; } else cur = t;
+      if (lines.length >= 2) break;
+    }
+    if (cur) lines.push(cur);
+    lines = lines.slice(0, 2);
+    var lineH = size * 1.25, blockH = lines.length * lineH + 16;
+    var cx = w / 2, cy = yPx;
+    var ink = "#0a2e29", paper = "#ecfdf9", accent = "#2dd4bf", yellow = "#e9c93a";
+    ctx.save();
+    lines.forEach(function (ln, idx) {
+      var lx = cx, ly = cy + (idx - (lines.length - 1) / 2) * lineH;
+      var tw = ctx.measureText(ln).width;
+      if (state.capStyle === "teal") {
+        ctx.fillStyle = "rgba(10,46,41,0.82)";
+        ctx.beginPath(); ctx.roundRect(lx - tw/2 - 10, ly - lineH/2, tw + 20, lineH, 12); ctx.fill();
+        ctx.fillStyle = paper;
+      } else if (state.capStyle === "yellow") {
+        ctx.fillStyle = yellow;
+        ctx.beginPath(); ctx.roundRect(lx - tw/2 - 8, ly - lineH/2 + 3, tw + 16, lineH - 2, 6); ctx.fill();
+        ctx.fillStyle = "#111";
+      } else {
+        ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
+        ctx.fillStyle = "#fff";
+      }
+      ctx.fillText(ln, lx, ly);
+      ctx.shadowBlur = 0;
+    });
+    ctx.restore();
+  }
+  window.__shortsmith.drawCaption = drawCaption;
 
   function pick(groupName, value) {
     var group = document.querySelector('[data-group="' + groupName + '"]');
@@ -1552,6 +1622,9 @@
     if (saved.length) pick("length", saved.length);
     if (saved.fit) pick("fit", saved.fit);
     if (saved.lang) pick("lang", saved.lang);
+    if (saved.capStyle) pick("capstyle", saved.capStyle);
+    if (saved.capFont) pick("capfont", saved.capFont);
+    if (saved.capSize) state.capSize = saved.capSize;
 
     var y = parseFloat(saved.capY);
     if (y >= 14 && y <= 86) {
@@ -1588,6 +1661,15 @@
     if (group === "lang") {
       state.lang = value;
       showToast("Caption language " + value);
+    }
+    if (group === "capstyle") {
+      state.capStyle = value;
+      document.querySelector(".caption-word").textContent = state.segments.length ? state.segments[0].text.slice(0, 18) : "ROME";
+      showToast("Caption style " + value);
+    }
+    if (group === "capfont") {
+      state.capFont = value;
+      showToast("Caption font " + value);
     }
     if (group !== "bg" || value !== "image") saveState();
   }
@@ -1704,6 +1786,9 @@
   }
   if (transcribeBtn) transcribeBtn.addEventListener("click", transcribeVideo);
   if (transcribeCancel) transcribeCancel.addEventListener("click", function () { transcribeCancelFlag = true; });
+
+  var capSizeInput = document.getElementById("cap-size");
+  if (capSizeInput) capSizeInput.addEventListener("input", function () { state.capSize = parseInt(capSizeInput.value, 10) || 28; saveState(); });
 
   /* caption drag */
 
