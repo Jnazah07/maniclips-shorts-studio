@@ -1,7 +1,7 @@
 # Shortsmith - Shorts Studio (web edition)
 
 Rebranded web recreation of the desktop Shorts Studio screen, built from
-runtime observation of `maniclips-desktop.exe` (Tauri v2 / WebView2).
+runtime observation of the reference desktop app (Tauri v2 / WebView2).
 
 Single self-contained page: `index.html` with inline CSS and JS. No build
 step, no dependencies except Google Fonts (Space Grotesk + Inter) loaded
