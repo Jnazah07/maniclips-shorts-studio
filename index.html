@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#081a18">
 <meta name="mobile-web-app-capable" content="yes">
@@ -74,6 +74,7 @@
   html, body {
     height: 100%;
     margin: 0;
+    overflow-x: clip;
   }
 
   body {
@@ -217,6 +218,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    min-height: 44px;
     height: 44px;
     padding: 0 14px;
     border-radius: var(--r-control);
@@ -256,7 +258,8 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    height: 42px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 12px;
     border-radius: var(--r-control);
     border: 1px solid rgba(45, 212, 191, .35);
@@ -280,7 +283,8 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    height: 42px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 12px;
     border-radius: var(--r-control);
     color: var(--text-3);
@@ -427,7 +431,8 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    height: 34px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 14px;
     border-radius: 999px;
     border: 1px solid rgba(45, 212, 191, .35);
@@ -450,8 +455,9 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: clip;
     padding: 22px 32px 32px;
-    scrollbar-color: #2a2f3a transparent;
+    scrollbar-color: var(--line-strong) transparent;
     scrollbar-width: thin;
   }
 
@@ -485,7 +491,7 @@
   .preview-card {
     border: 1px solid var(--line);
     border-radius: var(--r-card);
-    background: linear-gradient(180deg, rgba(20, 23, 29, .82), rgba(15, 17, 21, .92));
+    background: linear-gradient(180deg, rgba(20, 48, 45, .82), rgba(15, 31, 29, .92));
     padding: 26px 24px 18px;
     box-shadow: 0 24px 60px -40px rgba(0, 0, 0, .9);
   }
@@ -575,7 +581,8 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 9px 12px;
+    min-height: 44px;
+    padding: 12px;
     background: rgba(10, 12, 16, .62);
     backdrop-filter: blur(2px);
     cursor: grab;
@@ -624,12 +631,13 @@
   }
 
   .play-btn {
-    width: 30px;
-    height: 30px;
+    width: 44px;
+    height: 44px;
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 8px;
+    min-width: 44px;
+    border-radius: 10px;
     color: #f8faff;
     background: rgba(14, 16, 22, .62);
     border: 1px solid rgba(255, 255, 255, .18);
@@ -641,7 +649,8 @@
   .scrub {
     position: relative;
     flex: 1;
-    height: 20px;
+    min-height: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     cursor: pointer;
@@ -705,7 +714,7 @@
     background: var(--surface);
     display: flex;
     flex-direction: column;
-    max-height: calc(100dvh - 252px);
+    max-height: max(280px, calc(100dvh - 252px));
     box-shadow: 0 24px 60px -46px rgba(0, 0, 0, .9);
   }
 
@@ -713,7 +722,7 @@
     padding: 22px 22px 20px;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-color: #2a2f3a transparent;
+    scrollbar-color: var(--line-strong) transparent;
     scrollbar-width: thin;
   }
 
@@ -744,7 +753,8 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    height: 38px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 12px;
     border-radius: 999px;
     border: 1px solid var(--line-strong);
@@ -839,8 +849,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 30px;
+    min-width: 56px;
+    width: 56px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 10px;
     border-radius: var(--r-pill);
     background: #123330;
     color: #9fc8bf;
@@ -874,8 +887,9 @@
   }
 
   .chip {
-    min-width: 44px;
-    height: 36px;
+    min-width: 48px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 14px;
     border-radius: 999px;
     border: 1px solid var(--line-strong);
@@ -958,9 +972,9 @@
     z-index: var(--z-toast);
     padding: 11px 16px;
     border-radius: 10px;
-    background: #1d2433;
-    border: 1px solid rgba(255, 255, 255, .1);
-    color: #e6ecf9;
+    background: var(--surface-raised);
+    border: 1px solid var(--line-strong);
+    color: var(--text);
     font-size: 13px;
     box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .9);
     opacity: 0;
@@ -1033,7 +1047,7 @@
       flex-direction: row;
       border-right: 0;
       border-top: 1px solid var(--line);
-      background: rgba(19, 21, 26, .94);
+      background: rgba(13, 31, 29, .94);
       backdrop-filter: blur(16px) saturate(1.2);
       padding-bottom: env(safe-area-inset-bottom, 0);
     }
@@ -1047,6 +1061,7 @@
       flex: 1;
       flex-direction: column;
       gap: 3px;
+      min-height: 50px;
       height: 50px;
       padding: 0;
       border-radius: 10px;
@@ -1081,10 +1096,11 @@
     .settings { border-radius: 18px; }
     .settings-scroll { padding: 18px 16px; }
     .settings-foot { padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0)); }
-    .seg { height: 40px; font-size: 13px; }
-    .chip { height: 36px; min-width: 48px; }
+    .seg { min-height: 44px; height: 44px; font-size: 13px; }
+    .chip { min-height: 44px; height: 44px; min-width: 48px; }
     .segmented.bg-cols { grid-template-columns: 1fr 1fr; }
     .segmented.bg-cols .seg:last-child { grid-column: 1 / -1; }
+    .empty { min-height: 280px; padding: 32px 20px; }
   }
 
   @media (max-width: 420px) {
