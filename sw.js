@@ -1,7 +1,8 @@
 // Shortsmith service worker
 // Cache-first app shell for installability and offline use.
+// Whisper weights are never precached (too large, cached by library).
 
-var CACHE = "shortsmith-v1.1.0";
+var CACHE = "shortsmith-v1.2.0";
 var SHELL = [
   "./",
   "./index.html",

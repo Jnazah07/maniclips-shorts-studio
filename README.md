@@ -13,7 +13,7 @@ from CDN, with system fallbacks if offline.
 node server.js
 ```
 
-Then open http://127.0.0.1:8080
+Then open http://0.0.0.0:8080 (PC) or http://192.168.0.132:8080 on a phone on the same Wi-Fi (replace IP with your PC's).
 
 Opening `index.html` directly from disk also works, but a server is
 recommended so `localStorage` settings persistence and service-worker
@@ -43,17 +43,19 @@ registration served over HTTP. Use the server above for `127.0.0.1`.
 
 ## Features
 
-- Shorts Studio shell: sidebar, top bar, background render status banner
-- Phone preview: ratio 9:16 / 1:1 / 16:9, blur / solid / imported-image
-  background, video-fit cards, draggable caption band (pointer + arrows),
-  play/pause and scrubber
-- Settings: short length, auto speech captions toggle, caption language
-  EN / UR / HI / UR-R / HI-R
-- Sidebar collapse, Home / Projects empty states
-- Settings persist in `localStorage` across visits
-- Installable PWA with offline shell
-- Responsive: desktop 2-column, tablet icon rail + stacked, phone bottom
-  tab bar, touch targets, reduced-motion and print support
+- Shorts Studio shell: sidebar, top bar, status bar with real progress
+- Upload long video (picker or drop), preview in phone, play + scrub real video
+- Whisper WASM transcription (Tiny ~75 MB, Base ~500 MB) with progress + cancel; segments clickable to seek, editable textarea fallback when Whisper fails
+- Caption language = spoken language: EN / UR / HI / UR-R / HI-R (native script, UR-R/HI-R same as UR/HI)
+- Caption style (Teal Pill / Bold Yellow / Minimal White), font (Space Grotesk / Inter / System Bold), size slider, draggable position
+- Short length: 20s / 30s / 45s / 60s (up to 12 clips, realtime export)
+- Generate real vertical shorts via Canvas + MediaRecorder (WebM, MP4 where supported) with background blur / solid / image and fit blur-fill / full-screen, downloadable list
+- Captions Off: Generate works immediately, no Whisper download, clean cuts
+- Settings persist in `localStorage`
+- Installable PWA with offline shell (Whisper weights network on first run)
+- Responsive: desktop 2-column, tablet icon rail + stacked, phone bottom tab bar, 44px touch targets, reduced-motion and print support
+
+Limits: browser-only, no server. Reliable for short talks ~5 min; longer files warn and are slow on CPU. iOS Safari MediaRecorder limited — exports may be video-only.
 
 ## Rebrand
 

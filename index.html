@@ -1184,7 +1184,7 @@
       <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6" stroke-width="2.2"/></svg>
       <div class="status-copy">
         <div class="status-title">Making shorts in background...</div>
-        <div class="status-meta" id="status-meta">Listening to speech... 23% (shorts appear as they finish)</div>
+        <div class="status-meta" id="status-meta">Idle. Upload a video to begin.</div>
       </div>
       <div class="status-progress" aria-hidden="true"><span id="status-fill"></span></div>
       <button class="btn-ghost" id="view-studio" type="button">View in Studio</button>
@@ -1379,6 +1379,12 @@
           </aside>
 
         </div>
+
+        <section class="shorts-section" id="shorts-section" aria-label="Generated shorts" style="margin-top:22px;display:none">
+          <h3 style="margin:0 0 10px;font-family:var(--font-display)">Shorts</h3>
+          <p id="shorts-note" style="margin:0 0 10px;font-size:12.5px;color:var(--text-3)">Made short download</p>
+          <div id="shorts-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div>
+        </section>
       </section>
 
       <section id="view-home" hidden>
@@ -1967,11 +1973,105 @@
     saveState();
   });
 
-  /* generate + reset */
+  /* generate + reset (real exports) */
 
-  document.getElementById("generate").addEventListener("click", function () {
-    showToast("Queued " + state.length + " shorts at " + state.ratio);
-  });
+  var genBusy = false;
+  function parseLen() { return parseInt(state.length, 10) || 30; }
+  function canvasSize() {
+    if (state.ratio === "1:1") return [720, 720];
+    if (state.ratio === "16:9") return [1280, 720];
+    return [720, 1280];
+  }
+  function captionAt(t) {
+    var hit = state.segments.find(function (s) { return t >= s.start && t < s.end; });
+    return hit ? hit.text : "";
+  }
+  function appendShort(blob, i) {
+    var url = URL.createObjectURL(blob);
+    var ext = blob.type.indexOf("mp4") >= 0 ? "mp4" : "webm";
+    var name = "shortsmith-short-" + String(i + 1).padStart(2, "0") + "." + ext;
+    state.shorts.push({ url: url, name: name, mime: blob.type });
+    var sec = document.getElementById("shorts-section");
+    var list = document.getElementById("shorts-list");
+    sec.style.display = "";
+    var card = document.createElement("div");
+    card.style.cssText = "border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--surface)";
+    var v = document.createElement("video");
+    v.controls = true; v.playsInline = true; v.src = url;
+    v.style.cssText = "width:100%;border-radius:10px;background:#000";
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    a.textContent = "Download " + name + " (short download)";
+    a.style.cssText = "display:inline-flex;align-items:center;min-height:44px;margin-top:8px;color:#99f6e4;font-size:13px;font-weight:600";
+    card.appendChild(v); card.appendChild(a);
+    list.appendChild(card);
+  }
+  async function generateShorts() {
+    if (genBusy) return;
+    if (!state.videoUrl) { showToast("Upload a video first"); return; }
+    if (state.captions && !state.transcribed) { showToast("Transcribe or paste captions first"); setStatus("Transcript needed", "Turn captions off or finish Transcribe / paste.", 0); return; }
+    var len = parseLen(), dur = state.duration || previewVideo.duration || 0;
+    if (!dur || dur < len) { showToast("Video shorter than clip length"); return; }
+    genBusy = true;
+    var genBtn = document.getElementById("generate");
+    genBtn.disabled = true;
+    var N = Math.min(12, Math.floor(dur / len));
+    var canvas = document.createElement("canvas");
+    var size = canvasSize();
+    canvas.width = size[0]; canvas.height = size[1];
+    var ctx = canvas.getContext("2d");
+    var stream = canvas.captureStream(30);
+    var vs = previewVideo.captureStream ? previewVideo.captureStream() : null;
+    if (vs && vs.getAudioTracks) vs.getAudioTracks().forEach(function (t) { try { stream.addTrack(t); } catch (e) {} });
+    var mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"].find(function (m) { return typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m); });
+    setStatus("Making shorts", "Preparing " + N + "× " + len + "s clips (realtime export)...", 0.05);
+    var capYpct = parseFloat(captionBand.getAttribute("aria-valuenow")) || 54;
+    for (var i = 0; i < N; i++) {
+      var start = i * len;
+      setStatus("Making short " + (i + 1) + "/" + N, "Recording " + len + "s at " + state.ratio + "...", (i / N) * 0.9 + 0.05);
+      var rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 });
+      var chunks = [];
+      rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+      var done = new Promise(function (res) { rec.onstop = res; });
+      previewVideo.muted = true; previewVideo.currentTime = start;
+      await new Promise(function (res) { previewVideo.addEventListener("seeked", res, { once: true }); setTimeout(res, 800); });
+      rec.start(200);
+      var t0 = previewVideo.currentTime;
+      await new Promise(function (res) {
+        var raf = function () {
+          var t = previewVideo.currentTime;
+          var local = t - t0;
+          ctx.fillStyle = "#0b0d11"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (state.bg === "solid") { ctx.fillStyle = "#1a2e2a"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+          else if (state.bg === "blur") {
+            var sc = Math.max(canvas.width / previewVideo.videoWidth, canvas.height / previewVideo.videoHeight);
+            var dw = previewVideo.videoWidth * sc, dh = previewVideo.videoHeight * sc;
+            ctx.save(); try { ctx.filter = "blur(24px) brightness(0.6)"; } catch (e) {}
+            ctx.drawImage(previewVideo, (canvas.width - dw)/2, (canvas.height - dh)/2, dw, dh);
+            ctx.restore();
+          }
+          var fit = state.fit === "full" ? Math.max(canvas.width / previewVideo.videoWidth, canvas.height / previewVideo.videoHeight) : Math.min(canvas.width / previewVideo.videoWidth, canvas.height / previewVideo.videoHeight);
+          var fw = previewVideo.videoWidth * fit, fh = previewVideo.videoHeight * fit;
+          ctx.drawImage(previewVideo, (canvas.width - fw)/2, (canvas.height - fh)/2, fw, fh);
+          if (state.captions) {
+            var txt = captionAt(t0 + local);
+            if (txt) drawCaption(ctx, txt, canvas.height * capYpct / 100, canvas.width, canvas.height);
+          }
+          if (local < len && !genBusy) requestAnimationFrame(raf); else res();
+        };
+        raf();
+      });
+      previewVideo.pause();
+      rec.stop(); await done;
+      appendShort(new Blob(chunks, { type: mime || "video/webm" }), i);
+      setStatus("Making short " + (i + 1) + "/" + N, "Saved shortsmith-short-" + String(i + 1).padStart(2, "0"), ((i + 1) / N) * 0.95 + 0.05);
+    }
+    setStatus("Done", N + " shorts ready to download.", 1);
+    showToast("Generated " + N + " shorts");
+    genBusy = false; genBtn.disabled = false;
+  }
+  window.__shortsmith.generateShorts = generateShorts;
+  document.getElementById("generate").addEventListener("click", function () { generateShorts().catch(function (e) { setStatus("Generate failed", (e && e.message) || "See console.", 0); genBusy = false; document.getElementById("generate").disabled = false; }); });
 
   document.getElementById("reset").addEventListener("click", function () {
     document.querySelectorAll("[data-group]").forEach(function (group) {
@@ -1997,19 +2097,6 @@
     showToast("Settings reset");
     saveState();
   });
-
-  /* progress banner */
-
-  var fill = document.getElementById("status-fill");
-  var meta = document.getElementById("status-meta");
-  var pct = 23;
-
-  setInterval(function () {
-    if (pct >= 96) return;
-    pct += 1;
-    fill.style.transform = "scaleX(" + (pct / 100) + ")";
-    meta.textContent = "Listening to speech... " + pct + "% (shorts appear as they finish)";
-  }, 6000);
 
   renderPlayback();
   restoreState();
