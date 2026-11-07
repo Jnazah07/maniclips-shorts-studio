@@ -13,7 +13,7 @@ from CDN, with system fallbacks if offline.
 node server.js
 ```
 
-Then open http://127.0.0.1:4173
+Then open http://127.0.0.1:8080
 
 Opening `index.html` directly from disk also works, but a server is
 recommended so `localStorage` settings persistence and service-worker

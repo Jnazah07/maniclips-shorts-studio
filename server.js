@@ -29,4 +29,4 @@ http.createServer((req, res) => {
     res.writeHead(200, { "content-type": types[path.extname(file)] || "application/octet-stream" });
     res.end(data);
   });
-}).listen(4173, "127.0.0.1", () => console.log("serving on http://127.0.0.1:4173"));
+}).listen(8080, "127.0.0.1", () => console.log("serving on http://127.0.0.1:8080"));
