@@ -1250,6 +1250,10 @@
             <div class="preview-note">
               <strong>Short #2 &middot; phone preview, exactly how viewers will see it</strong>
               <p>Play the short, then click and hold the words on the phone and drag them. Every caption will use that spot. Press apply to save it.</p>
+              <div id="caption-preview" style="margin-top:12px;padding:12px;border-radius:12px;background:#0b0d11;border:1px solid var(--line);min-height:44px;display:flex;align-items:center;justify-content:center" aria-live="polite">
+                <span id="caption-preview-text" style="font-weight:700;text-align:center">Preview text</span>
+              </div>
+              <p style="margin:6px 0 0;font-size:12px;color:var(--text-3)">Live preview of selected style / font / size. Edits update here and on the phone.</p>
             </div>
           </section>
 
@@ -1486,18 +1490,37 @@
       if (ytFrame) { ytFrame.hidden = true; ytFrame.style.display = "none"; ytFrame.removeAttribute("src"); }
     }
   }
-  function loadYouTube(url) {
-    var m = /youtu\.be\/([^\?&]+)/.exec(url) || /[?&]v=([^\?&]+)/.exec(url) || /embed\/([^\?&]+)/.exec(url);
+  async function loadYouTube(url) {
+    var m = /youtu\.be\/([^\?&]+)/.exec(url) || /[?&]v=([^\?&]+)/.exec(url) || /embed\/([^\?&]+)/.exec(url) || /shorts\/([^\?&]+)/.exec(url);
     if (!m) { showToast("Paste a YouTube link like youtube.com/watch?v=..."); return; }
     var id = m[1];
-    state.videoUrl = null; state.duration = 0;
-    previewVideo.hidden = true; previewVideo.style.display = "none"; previewVideo.removeAttribute("src");
-    screenMedia.style.display = "none";
-    ytFrame.hidden = false; ytFrame.style.display = "";
-    ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?rel=0";
-    sourceChip.textContent = "YouTube preview " + id + " (upload MP4 to generate)";
-    statusTitle.textContent = "YouTube loaded";
-    statusMeta.textContent = "Preview only. Download the video and upload it to transcribe + generate.";
+    ytLoad.disabled = true; ytUrl.disabled = true;
+    setStatus("Downloading YouTube", "Fetching " + id + " via local server (yt-dlp)...", 0.4);
+    try {
+      var r = await fetch("/api/youtube", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: url }) });
+      if (!r.ok) {
+        var txt = "";
+        try { txt = await r.text(); } catch {}
+        throw new Error(txt || "fetch failed");
+      }
+      var blob = await r.blob();
+      if (!blob.size) throw new Error("empty file");
+      var file = new File([blob], "shortsmith-youtube-" + id + ".mp4", { type: blob.type || "video/mp4" });
+      loadVideoFile(file);
+      setStatus("Ready to transcribe", "YouTube file loaded. Review captions, then Generate.", 0);
+    } catch (e) {
+      // Fallback to embed preview only (static hosting)
+      state.videoUrl = null; state.duration = 0;
+      previewVideo.hidden = true; previewVideo.style.display = "none"; previewVideo.removeAttribute("src");
+      screenMedia.style.display = "none";
+      ytFrame.hidden = false; ytFrame.style.display = "";
+      ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?rel=0";
+      sourceChip.textContent = "YouTube preview " + id + " (download failed, preview only)";
+      setStatus("YouTube preview only", "Local server could not fetch (try node server.js + yt-dlp). Upload the MP4 to generate.", 0);
+      showToast("Could not download, showing preview only");
+    } finally {
+      ytLoad.disabled = false; ytUrl.disabled = false;
+    }
   }
   var ytLoad = document.getElementById("yt-load"), ytUrl = document.getElementById("yt-url");
   if (ytLoad) ytLoad.addEventListener("click", function () { loadYouTube(ytUrl.value.trim()); });
@@ -1631,6 +1654,25 @@
   }
   window.__shortsmith.drawCaption = drawCaption;
 
+  function applyCaptionPreview() {
+    var txt = (state.segments.length ? state.segments[0].text : (document.getElementById("transcript-text") && document.getElementById("transcript-text").value.trim().split("\n")[0])) || "Preview text";
+    document.querySelector(".caption-word").textContent = txt.slice(0, 24);
+    var prev = document.getElementById("caption-preview-text");
+    if (prev) {
+      prev.textContent = txt;
+      var fontMap = { space: '"Space Grotesk","Inter",system-ui,sans-serif', inter: '"Inter",system-ui,sans-serif', system: "system-ui,sans-serif" };
+      prev.style.fontFamily = fontMap[state.capFont] || fontMap.space;
+      prev.style.fontSize = (state.capSize || 28) * 0.55 + "px";
+      prev.style.background = state.capStyle === "teal" ? "rgba(10,46,41,0.85)" : state.capStyle === "yellow" ? "#e9c93a" : "transparent";
+      prev.style.color = state.capStyle === "yellow" ? "#111" : "#ecfdf9";
+      prev.style.padding = state.capStyle === "minimal" ? "0" : "4px 10px";
+      prev.style.borderRadius = state.capStyle === "minimal" ? "0" : "8px";
+      var band = document.getElementById("caption-band");
+      band.style.background = state.capStyle === "teal" ? "rgba(10,12,16,.62)" : state.capStyle === "yellow" ? "rgba(233,201,58,.92)" : "rgba(10,12,16,.35)";
+    }
+  }
+  window.__shortsmith.applyCaptionPreview = applyCaptionPreview;
+
   function pick(groupName, value) {
     var group = document.querySelector('[data-group="' + groupName + '"]');
     if (!group) return;
@@ -1702,11 +1744,12 @@
     }
     if (group === "capstyle") {
       state.capStyle = value;
-      document.querySelector(".caption-word").textContent = state.segments.length ? state.segments[0].text.slice(0, 18) : "ROME";
+      applyCaptionPreview();
       showToast("Caption style " + value);
     }
     if (group === "capfont") {
       state.capFont = value;
+      applyCaptionPreview();
       showToast("Caption font " + value);
     }
     if (group !== "bg" || value !== "image") saveState();
@@ -1775,6 +1818,7 @@
     state.transcribed = true;
     statusTitle.textContent = "Transcript ready";
     statusMeta.textContent = "Editable captions are set. Click Generate to export.";
+    applyCaptionPreview();
   });
 
   function setStatus(title, meta, pct) {
@@ -1834,7 +1878,7 @@
   if (transcribeCancel) transcribeCancel.addEventListener("click", function () { transcribeCancelFlag = true; });
 
   var capSizeInput = document.getElementById("cap-size");
-  if (capSizeInput) capSizeInput.addEventListener("input", function () { state.capSize = parseInt(capSizeInput.value, 10) || 28; saveState(); });
+  if (capSizeInput) capSizeInput.addEventListener("input", function () { state.capSize = parseInt(capSizeInput.value, 10) || 28; applyCaptionPreview(); saveState(); });
 
   /* caption drag */
 
@@ -2144,6 +2188,7 @@
 
   renderPlayback();
   restoreState();
+  applyCaptionPreview();
 
   /* installable PWA */
   var installBtn = document.getElementById("install");
