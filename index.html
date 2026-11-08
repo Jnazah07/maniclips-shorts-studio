@@ -383,8 +383,9 @@
     stroke: currentColor;
     stroke-width: 2.2;
     stroke-linecap: round;
-    animation: spin 1.1s linear infinite;
+    animation: none;
   }
+  .status-icon[data-working="true"] { animation: spin 1.1s linear infinite; }
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1181,7 +1182,7 @@
     </header>
 
     <div class="statusbar" role="status" aria-live="polite">
-      <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6" stroke-width="2.2"/></svg>
+      <svg class="status-icon" id="status-icon" data-working="false" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6" stroke-width="2.2"/></svg>
       <div class="status-copy">
         <div class="status-title">Ready</div>
         <div class="status-meta" id="status-meta">Idle. Upload a video to begin.</div>
@@ -1204,6 +1205,11 @@
             <span id="source-chip" style="font-size:12.5px;color:var(--text-2)">No video yet. Drop a file or click Upload.</span>
           </div>
           <input type="file" id="video-input" accept="video/*" class="sr-only">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <input type="url" id="yt-url" placeholder="Paste YouTube link (youtube.com/watch?v=...)" aria-label="YouTube link" style="flex:1;min-width:220px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text)">
+            <button class="btn-ghost" id="yt-load" type="button">Load YouTube</button>
+          </div>
+          <p style="margin:8px 0 0;font-size:12.5px;color:var(--text-3)">YouTube links preview in-app only. To make shorts, download the video and upload the MP4. Browsers cannot pull YouTube files directly.</p>
         </div>
 
         <div class="workspace">
@@ -1213,11 +1219,9 @@
               <div class="phone" id="phone" data-ratio="9:16">
                 <div class="screen" id="screen">
                   <div class="screen-fill" id="screen-fill" aria-hidden="true"></div>
-                  <img class="screen-media" id="screen-media"
-                       src="https://picsum.photos/seed/shortsmith-studio-preview/720/1280"
-                       alt="Preview footage inside the short" loading="lazy"
-                       onerror="this.style.display='none'">
+                  <div class="screen-media" id="screen-empty" style="display:grid;place-items:center;background:#0b0d11;color:var(--text-3);font-size:13px;text-align:center;padding:20px">No video yet.<br>Upload a file or load a YouTube link.</div>
                   <video class="screen-media" id="preview-video" playsinline muted loop hidden style="display:none"></video>
+                  <iframe class="screen-media" id="yt-frame" title="YouTube preview" allow="autoplay; encrypted-media" allowfullscreen hidden style="display:none;border:0;background:#000"></iframe>
                   <div class="screen-tint" id="screen-tint" hidden></div>
                   <div class="island" aria-hidden="true"></div>
 
@@ -1434,7 +1438,8 @@
   var screen = document.getElementById("screen");
   var screenFill = document.getElementById("screen-fill");
   var screenTint = document.getElementById("screen-tint");
-  var screenMedia = document.getElementById("screen-media");
+  var screenMedia = document.getElementById("screen-empty");
+  var ytFrame = document.getElementById("yt-frame");
   var captionBand = document.getElementById("caption-band");
   var captionsSwitch = document.getElementById("captions");
   var langChips = document.getElementById("lang-chips");
@@ -1478,13 +1483,30 @@
       previewVideo.hidden = false;
       previewVideo.style.display = "";
       screenMedia.style.display = "none";
+      if (ytFrame) { ytFrame.hidden = true; ytFrame.style.display = "none"; ytFrame.removeAttribute("src"); }
     }
   }
+  function loadYouTube(url) {
+    var m = /youtu\.be\/([^\?&]+)/.exec(url) || /[?&]v=([^\?&]+)/.exec(url) || /embed\/([^\?&]+)/.exec(url);
+    if (!m) { showToast("Paste a YouTube link like youtube.com/watch?v=..."); return; }
+    var id = m[1];
+    state.videoUrl = null; state.duration = 0;
+    previewVideo.hidden = true; previewVideo.style.display = "none"; previewVideo.removeAttribute("src");
+    screenMedia.style.display = "none";
+    ytFrame.hidden = false; ytFrame.style.display = "";
+    ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?rel=0";
+    sourceChip.textContent = "YouTube preview " + id + " (upload MP4 to generate)";
+    statusTitle.textContent = "YouTube loaded";
+    statusMeta.textContent = "Preview only. Download the video and upload it to transcribe + generate.";
+  }
+  var ytLoad = document.getElementById("yt-load"), ytUrl = document.getElementById("yt-url");
+  if (ytLoad) ytLoad.addEventListener("click", function () { loadYouTube(ytUrl.value.trim()); });
+  if (ytUrl) ytUrl.addEventListener("keydown", function (e) { if (e.key === "Enter") loadYouTube(ytUrl.value.trim()); });
   window.__shortsmith = { state: state, setVideo: setVideo, getLength: getLength };
 
   function loadVideoFile(file) {
     if (!file || !file.type || file.type.indexOf("video/") !== 0) { showToast("Pick a video file"); return; }
-    if (file.size > 500 * 1024 * 1024) { statusTitle.textContent = "File too large"; statusMeta.textContent = "Over ~500 MB. Use a shorter clip or split it."); showToast("File too large (~500 MB max)"); return; }
+    if (file.size > 500 * 1024 * 1024) { statusTitle.textContent = "File too large"; statusMeta.textContent = "Over ~500 MB. Use a shorter clip or split it."; showToast("File too large (~500 MB max)"); return; }
     if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
     var url = URL.createObjectURL(file);
     state.transcribed = false; state.segments = [];
@@ -1694,9 +1716,10 @@
     var file = imageInput.files && imageInput.files[0];
     if (!file) return;
     var url = URL.createObjectURL(file);
-    screenMedia.src = url;
-    screenMedia.style.display = "block";
-    screenFill.hidden = true;
+    screenFill.style.backgroundImage = "url(" + url + ")";
+    screenFill.style.backgroundSize = "cover";
+    screenFill.style.backgroundPosition = "center";
+    screenFill.hidden = false;
     screenTint.hidden = true;
     state.bg = "image";
     showToast("Background image imported");
@@ -1759,6 +1782,8 @@
     statusMeta.textContent = meta;
     var f = document.getElementById("status-fill");
     if (f) f.style.transform = "scaleX(" + Math.max(0, Math.min(1, pct)) + ")";
+    var ic = document.getElementById("status-icon");
+    if (ic) ic.dataset.working = (pct > 0 && pct < 1) ? "true" : "false";
   }
 
   async function transcribeVideo() {
