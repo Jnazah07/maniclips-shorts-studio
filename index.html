@@ -1444,6 +1444,18 @@
   var screenTint = document.getElementById("screen-tint");
   var screenMedia = document.getElementById("screen-empty");
   var ytFrame = document.getElementById("yt-frame");
+  var backend = { mode: "wasm", faster: false };
+  async function detectBackend() {
+    try {
+      var r = await fetch("/api/health"); if (!r.ok) return;
+      var j = await r.json();
+      if (j.backend === "python") {
+        backend.mode = "python"; backend.faster = !!j.faster_whisper;
+        document.getElementById("transcribe-helper").textContent = j.faster_whisper ? "Fast backend connected. Transcribe runs on your PC (faster-whisper)." : "Backend found but faster-whisper missing. Run: pip install faster-whisper";
+      }
+    } catch (e) {}
+  }
+  detectBackend();
   var captionBand = document.getElementById("caption-band");
   var captionsSwitch = document.getElementById("captions");
   var langChips = document.getElementById("lang-chips");
@@ -1838,12 +1850,30 @@
     if (ic) ic.dataset.working = (pct > 0 && pct < 1) ? "true" : "false";
   }
 
+  async function transcribeViaBackend() {
+    var fid = state.videoFile && state.videoFile.name;
+    if (!fid) { setStatus("Transcribe failed", "Upload via Upload button so backend has the file.", 0); return; }
+    setStatus("Transcribing", "Uploading to backend...", 0.1);
+    var up = await fetch("/api/upload", { method: "POST", headers: { "X-Filename": fid }, body: state.videoFile });
+    var uj = await up.json();
+    var tr = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: uj.file_id, language: state.lang.toLowerCase().replace("-r", "") === "ur-r" ? "ur" : state.lang.toLowerCase().replace("-r", "") === "hi-r" ? "hi" : state.lang.toLowerCase(), model: state.model }) });
+    var job = await tr.json();
+    var poll = setInterval(async () => {
+      try {
+        var s = await fetch("/api/jobs/" + job.job_id).then(r => r.json()).catch(() => ({}));
+        if (s.status === "done") { clearInterval(poll); state.segments = s.segments || []; state.transcribed = true; renderSegments(); applyCaptionPreview(); setStatus("Transcript ready", state.segments.length + " segments. Click Generate to export.", 1); }
+        else if (s.status === "error") { clearInterval(poll); setStatus("Transcribe failed", s.error || "see server", 0); }
+      } catch {}
+    }, 1500);
+    transcribeCancel.addEventListener("click", function cc() { fetch("/api/jobs/" + job.job_id, { method: "DELETE" }); clearInterval(poll); }, { once: true });
+  }
   async function transcribeVideo() {
     if (!state.videoUrl) { showToast("Upload a video first"); return; }
     if (!state.captions) { state.transcribed = true; setStatus("Ready to generate", "Captions off. Click Generate.", 1); return; }
     transcribeCancelFlag = false;
     transcribeBtn.disabled = true; transcribeCancel.hidden = false;
     try {
+      if (backend.mode === "python") { await transcribeViaBackend(); return; }
       var modelName = state.model === "base" ? "Xenova/whisper-base" : "Xenova/whisper-tiny";
       var modelLabel = state.model === "base" ? "~500 MB" : "~75 MB";
       setStatus("Loading Whisper", "Downloading model " + modelLabel + ", first run only...", 0.05);
@@ -2089,9 +2119,9 @@
     var hit = state.segments.find(function (s) { return t >= s.start && t < s.end; });
     return hit ? hit.text : "";
   }
-  function appendShort(blob, i) {
-    var url = URL.createObjectURL(blob);
-    var ext = blob.type.indexOf("mp4") >= 0 ? "mp4" : "webm";
+  function appendShort(blob, i, urlOverride) {
+    var url = urlOverride || URL.createObjectURL(blob);
+    var ext = urlOverride ? "mp4" : (blob.type.indexOf("mp4") >= 0 ? "mp4" : "webm");
     var name = "shortsmith-short-" + String(i + 1).padStart(2, "0") + "." + ext;
     state.shorts.push({ url: url, name: name, mime: blob.type });
     var sec = document.getElementById("shorts-section");
@@ -2113,6 +2143,32 @@
     if (genBusy) return;
     if (!state.videoUrl) { showToast("Upload a video first"); return; }
     if (state.captions && !state.transcribed) { showToast("Transcribe or paste captions first"); setStatus("Transcript needed", "Turn captions off or finish Transcribe / paste.", 0); return; }
+    if (backend.mode === "python") {
+      genBusy = true; genCancel = false;
+      var genBtn = document.getElementById("generate"), genCancelBtn = document.getElementById("generate-cancel");
+      genBtn.disabled = true; genCancelBtn.hidden = false;
+      try {
+        var fid = state.videoFile && state.videoFile.name;
+        if (!fid) { setStatus("Generate failed", "File not on server. Re-upload via Upload.", 0); return; }
+        setStatus("Making shorts", "Sending to fast backend (ffmpeg)...", 0.08);
+        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio }) });
+        var gj = await gr.json();
+        var poll = setInterval(async () => {
+          try {
+            var s = await fetch("/api/jobs/" + gj.job_id).then(r => r.json());
+            if (s.status === "done") {
+              clearInterval(poll);
+              (s.clips || []).forEach(function (c, i) { appendShort({ type: "video/mp4" }, i, c); });
+              setStatus("Done", (s.clips || []).length + " shorts ready to download (fast, no realtime wait).", 1);
+              showToast("Generated " + (s.clips || []).length + " shorts");
+              genBusy = false; genBtn.disabled = false; genCancelBtn.hidden = true;
+            } else if (s.status === "error") { clearInterval(poll); setStatus("Generate failed", s.error || "see server", 0); genBusy = false; genBtn.disabled = false; genCancelBtn.hidden = true; }
+          } catch {}
+        }, 1200);
+        genCancelBtn.onclick = function () { fetch("/api/jobs/" + gj.job_id, { method: "DELETE" }); genCancel = true; };
+      } catch (e) { setStatus("Generate failed", String(e), 0); genBusy = false; genBtn.disabled = false; genCancelBtn.hidden = true; }
+      return;
+    }
     var len = parseLen(), dur = state.duration || previewVideo.duration || 0;
     if (!dur || dur < len) { showToast("Video shorter than clip length"); return; }
     genBusy = true; genCancel = false;
