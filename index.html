@@ -2151,7 +2151,7 @@
         var fid = state.videoFile && state.videoFile.name;
         if (!fid) { setStatus("Generate failed", "File not on server. Re-upload via Upload.", 0); return; }
         setStatus("Making shorts", "Sending to fast backend (ffmpeg)...", 0.08);
-        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio }) });
+        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: parseFloat(captionBand.getAttribute("aria-valuenow")) || 54 }) });
         var gj = await gr.json();
         var poll = setInterval(async () => {
           try {

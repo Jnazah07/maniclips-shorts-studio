@@ -159,30 +159,81 @@ class H(BaseHTTPRequestHandler):
             fid = str(data.get("file_id") or "")
             length = int(data.get("length") or 30)
             ratio = str(data.get("ratio") or "9:16")
+            bg = str(data.get("bg") or "blur")
+            fit = str(data.get("fit") or "blur")
+            segments = data.get("segments") or []
+            capStyle = str(data.get("capStyle") or "teal")
+            capFont = str(data.get("capFont") or "space")
+            capSize = int(data.get("capSize") or 28)
+            capY = float(data.get("capY") or 54)
+            wantCaps = bool(data.get("captions") if "captions" in data else bool(segments))
             job_id = uuid.uuid4().hex[:8]
             job = {"id": job_id, "status": "running", "progress": 5, "clips": []}
             with jobs_lock:
                 jobs[job_id] = job
+            def fmt_ts(s):
+                h, m = divmod(int(s), 3600); m, sec = divmod(int(s) % 3600, 60)
+                return f"{h}:{m:02d}:{sec:02d}.{int((s - int(s)) * 100):02d}"
+            def wrap(t, n=42):
+                import textwrap
+                lines = []
+                for para in str(t).split("\n"):
+                    lines.extend(textwrap.wrap(para, width=n) or [""])
+                return "\\N".join(lines[:3])
             def gen():
                 try:
                     src = UPLOADS / Path(fid).name
                     if not src.exists():
                         job.update(status="error", error="file not found"); return
-                    # probe duration
                     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(src)], capture_output=True, text=True)
                     dur = float((probe.stdout or "0").strip() or 0)
                     n = min(12, int(dur // length)) if length else 1
                     w, h = (720, 1280) if ratio == "9:16" else (720, 720) if ratio == "1:1" else (1280, 720)
+                    ass_path = DATA / f"caps-{job_id}.ass"
+                    if wantCaps and segments:
+                        fontmap = {"space": "Space Grotesk", "inter": "Inter", "system": "Arial"}
+                        fname = fontmap.get(capFont, "Arial")
+                        ssize = max(18, min(48, capSize))
+                        if capStyle == "yellow":
+                            style_line = f"Style: Cap,Yellow,{fname},{ssize},&H00000000,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,2,2,1,20,20,80,1"
+                            align = 2
+                        elif capStyle == "minimal":
+                            style_line = f"Style: Cap,White,{fname},{ssize},&H00FFFFFF,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,1,20,20,80,1"
+                            align = 2
+                        else:
+                            style_line = f"Style: Cap,Teal,{fname},{ssize},&H00EAFDF9,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,2,2,1,20,20,80,1"
+                            align = 2
+                        # vertical position: 14-86% -> marginV
+                        marginV = max(20, int(h * (1 - capY / 100) * 0.3))
+                        ass = "[Script Info]\nScriptType: v4.00+\nPlayResX: %d\nPlayResY: %d\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n%s\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" % (w, h, style_line)
+                        for seg in segments:
+                            ass += f"Dialogue: 0,{fmt_ts(float(seg.get('start', 0)))},{fmt_ts(float(seg.get('end', 5)))},Cap,,0,0,{marginV},,{wrap(seg.get('text', ''))}\n"
+                        ass_path.write_text(ass, encoding="utf-8")
                     clips = []
                     for i in range(n):
                         if job.get("cancel"):
                             break
                         start = i * length
                         outp = CLIPS / f"shortsmith-short-{i+1:02d}.mp4"
-                        vf = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
-                        run(job, ["ffmpeg", "-y", "-ss", str(start), "-t", str(length), "-i", str(src), "-vf", vf, "-c:a", "aac", "-b:a", "128k", str(outp)])
+                        if bg == "blur" and fit == "blur":
+                            fc = f"[0:v]split=2[b][m];[b]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma=18[bg];[m]scale={w}:{h}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p"
+                        elif bg == "solid":
+                            fc = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=#1a2e2a,format=yuv420p"
+                        elif fit == "full":
+                            fc = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},format=yuv420p"
+                        else:
+                            fc = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
+                        if wantCaps and segments and ass_path.exists():
+                            esc = str(ass_path).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+                            fc += f",subtitles='{esc}'"
+                        run(job, ["ffmpeg", "-y", "-ss", str(start), "-t", str(length), "-i", str(src), "-filter_complex", fc, "-c:a", "aac", "-b:a", "128k", str(outp)])
                         clips.append(f"/data/clips/{outp.name}")
                         job["progress"] = 5 + int((i + 1) / max(1, n) * 90)
+                    try:
+                        if ass_path.exists():
+                            ass_path.unlink()
+                    except Exception:
+                        pass
                     job.update(status="done", progress=100, clips=clips)
                 except Exception as e:
                     job.update(status="error", error=str(e)[:600])
