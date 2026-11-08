@@ -423,7 +423,7 @@
     border-radius: inherit;
     background: var(--accent);
     transform-origin: left center;
-    transform: scaleX(.23);
+    transform: scaleX(0);
   }
 
   .btn-ghost {
@@ -1359,8 +1359,14 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn-ghost" id="transcribe" type="button">Transcribe</button>
                   <button class="btn-ghost" id="transcribe-cancel" type="button" hidden>Cancel</button>
+                  <label for="model-select" style="display:inline-flex;align-items:center;gap:7px;min-height:44px;font-size:12.5px;color:var(--text-2)">Model
+                    <select id="model-select" style="min-height:44px;padding:0 10px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text)">
+                      <option value="tiny">Tiny (~75 MB)</option>
+                      <option value="base">Base (~500 MB)</option>
+                    </select>
+                  </label>
                 </div>
-                <p class="helper" id="transcribe-helper">Needs Whisper (Tiny ~75 MB). Captions Off skips transcription.</p>
+                <p class="helper" id="transcribe-helper">Needs Whisper (Tiny ~75 MB). Base is ~5× larger. Captions Off skips transcription.</p>
                 <div id="segments-list" style="margin-top:10px;max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;display:none"></div>
                 <textarea id="transcript-text" rows="4" placeholder="Edit captions here, one segment per line, or paste a transcript" style="width:100%;margin-top:10px;min-height:88px;padding:10px;border-radius:12px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text);font:inherit" aria-label="Editable transcript"></textarea>
               </div>
@@ -1372,6 +1378,7 @@
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5 19 12 5 19.5z"/></svg>
                 Generate shorts
               </button>
+              <button class="btn-ghost" id="generate-cancel" type="button" hidden>Cancel</button>
               <button class="btn-icon" id="reset" type="button" aria-label="Reset settings">
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v5h5"/><path d="M4.6 14a8 8 0 1 0 .9-6.2L4 10"/></svg>
               </button>
@@ -1450,6 +1457,7 @@
     capStyle: "teal",
     capFont: "space",
     capSize: 28,
+    model: "tiny",
     progress: 0.12,
     playing: false,
     videoUrl: null,
@@ -1476,12 +1484,14 @@
 
   function loadVideoFile(file) {
     if (!file || !file.type || file.type.indexOf("video/") !== 0) { showToast("Pick a video file"); return; }
+    if (file.size > 500 * 1024 * 1024) { statusTitle.textContent = "File too large"; statusMeta.textContent = "Over ~500 MB. Use a shorter clip or split it."); showToast("File too large (~500 MB max)"); return; }
     if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
     var url = URL.createObjectURL(file);
     state.transcribed = false; state.segments = [];
     var temp = document.createElement("video");
     temp.preload = "metadata"; temp.src = url;
     temp.addEventListener("loadedmetadata", function () {
+      if (temp.duration > 600) { statusTitle.textContent = "Video too long"; statusMeta.textContent = "Over ~10 min. Upload a shorter clip; longer videos may freeze transcription."; showToast("Video too long (~10 min max for transcribe)"); return; }
       setVideo(url, { duration: temp.duration, file: file });
       sourceChip.textContent = file.name + " · " + Math.round((file.size/1024/1024)*10)/10 + " MB · " + Math.round(temp.duration) + "s · " + temp.videoWidth + "×" + temp.videoHeight;
       statusTitle.textContent = "Ready to transcribe";
@@ -1710,9 +1720,11 @@
   /* transcribe (Whisper WASM) */
   var transcribeBtn = document.getElementById("transcribe");
   var transcribeCancel = document.getElementById("transcribe-cancel");
+  var modelSelect = document.getElementById("model-select");
+  if (modelSelect) modelSelect.addEventListener("change", function () { state.model = modelSelect.value; document.getElementById("transcribe-helper").textContent = modelSelect.value === "base" ? "Base model ~500 MB. Slower, more accurate." : "Needs Whisper (Tiny ~75 MB). Base is ~5× larger. Captions Off skips transcription."; });
   var segmentsList = document.getElementById("segments-list");
   var transcriptText = document.getElementById("transcript-text");
-  var transcribeCancelFlag = false, whisperPipeline = null;
+  var transcribeCancelFlag = false, whisperPipeline = null, whisperModel = "";
 
   function renderSegments() {
     segmentsList.innerHTML = "";
@@ -1755,11 +1767,14 @@
     transcribeCancelFlag = false;
     transcribeBtn.disabled = true; transcribeCancel.hidden = false;
     try {
-      setStatus("Loading Whisper", "Downloading model ~75 MB, first run only...", 0.05);
-      if (!whisperPipeline) {
+      var modelName = state.model === "base" ? "Xenova/whisper-base" : "Xenova/whisper-tiny";
+      var modelLabel = state.model === "base" ? "~500 MB" : "~75 MB";
+      setStatus("Loading Whisper", "Downloading model " + modelLabel + ", first run only...", 0.05);
+      if (!whisperPipeline || whisperModel !== modelName) {
         var mod = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm");
         var pipeline = mod.pipeline;
-        whisperPipeline = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny", { dtype: "q8", progress_callback: function (p) { if (transcribeCancelFlag) return; var pct = (p.progress || 0) / 100 * 0.4 + 0.05; setStatus("Loading Whisper", "Downloading model " + Math.round(p.progress || 0) + "%", pct); } });
+        whisperPipeline = await pipeline("automatic-speech-recognition", modelName, { dtype: "q8", progress_callback: function (p) { if (transcribeCancelFlag) return; var pct = (p.progress || 0) / 100 * 0.4 + 0.05; setStatus("Loading Whisper", "Downloading model " + Math.round(p.progress || 0) + "%", pct); } });
+        whisperModel = modelName;
       }
       if (transcribeCancelFlag) throw new Error("cancelled");
       setStatus("Transcribing", "Extracting audio...", 0.5);
@@ -1975,7 +1990,7 @@
 
   /* generate + reset (real exports) */
 
-  var genBusy = false;
+  var genBusy = false, genCancel = false;
   function parseLen() { return parseInt(state.length, 10) || 30; }
   function canvasSize() {
     if (state.ratio === "1:1") return [720, 720];
@@ -2012,9 +2027,11 @@
     if (state.captions && !state.transcribed) { showToast("Transcribe or paste captions first"); setStatus("Transcript needed", "Turn captions off or finish Transcribe / paste.", 0); return; }
     var len = parseLen(), dur = state.duration || previewVideo.duration || 0;
     if (!dur || dur < len) { showToast("Video shorter than clip length"); return; }
-    genBusy = true;
+    genBusy = true; genCancel = false;
     var genBtn = document.getElementById("generate");
-    genBtn.disabled = true;
+    var genCancelBtn = document.getElementById("generate-cancel");
+    genBtn.disabled = true; genCancelBtn.hidden = false;
+    if (!canvas.captureStream || typeof MediaRecorder === "undefined") { setStatus("Recorder unsupported", "Use Chrome/Edge on desktop/Android for exports.", 0); document.getElementById("shorts-note").textContent = "Recorder unsupported on this browser. Captions off still previews."; genBusy = false; genBtn.disabled = false; genCancelBtn.hidden = true; return; }
     var N = Math.min(12, Math.floor(dur / len));
     var canvas = document.createElement("canvas");
     var size = canvasSize();
@@ -2033,8 +2050,9 @@
       var chunks = [];
       rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
       var done = new Promise(function (res) { rec.onstop = res; });
-      previewVideo.muted = true; previewVideo.currentTime = start;
+      previewVideo.muted = true; previewVideo.loop = false; previewVideo.currentTime = start;
       await new Promise(function (res) { previewVideo.addEventListener("seeked", res, { once: true }); setTimeout(res, 800); });
+      try { await previewVideo.play(); } catch (e) { setStatus("Generate failed", "Video playback blocked. Click play once and retry.", 0); genBusy = false; genBtn.disabled = false; return; }
       rec.start(200);
       var t0 = previewVideo.currentTime;
       await new Promise(function (res) {
@@ -2057,7 +2075,7 @@
             var txt = captionAt(t0 + local);
             if (txt) drawCaption(ctx, txt, canvas.height * capYpct / 100, canvas.width, canvas.height);
           }
-          if (local < len && !genBusy) requestAnimationFrame(raf); else res();
+          if (local < len && !genCancel) requestAnimationFrame(raf); else res();
         };
         raf();
       });
@@ -2066,12 +2084,13 @@
       appendShort(new Blob(chunks, { type: mime || "video/webm" }), i);
       setStatus("Making short " + (i + 1) + "/" + N, "Saved shortsmith-short-" + String(i + 1).padStart(2, "0"), ((i + 1) / N) * 0.95 + 0.05);
     }
-    setStatus("Done", N + " shorts ready to download.", 1);
-    showToast("Generated " + N + " shorts");
-    genBusy = false; genBtn.disabled = false;
+    setStatus(genCancel ? "Cancelled" : "Done", genCancel ? "Export stopped." : N + " shorts ready to download.", 1);
+    showToast(genCancel ? "Export cancelled" : "Generated " + N + " shorts");
+    genBusy = false; genCancel = false; genBtn.disabled = false; genCancelBtn.hidden = true;
   }
   window.__shortsmith.generateShorts = generateShorts;
-  document.getElementById("generate").addEventListener("click", function () { generateShorts().catch(function (e) { setStatus("Generate failed", (e && e.message) || "See console.", 0); genBusy = false; document.getElementById("generate").disabled = false; }); });
+  document.getElementById("generate").addEventListener("click", function () { generateShorts().catch(function (e) { setStatus("Generate failed", (e && e.message) || "See console.", 0); genBusy = false; genCancel = false; document.getElementById("generate").disabled = false; document.getElementById("generate-cancel").hidden = true; }); });
+  document.getElementById("generate-cancel").addEventListener("click", function () { genCancel = true; showToast("Cancelling export"); });
 
   document.getElementById("reset").addEventListener("click", function () {
     document.querySelectorAll("[data-group]").forEach(function (group) {
