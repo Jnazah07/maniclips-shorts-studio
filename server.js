@@ -37,7 +37,7 @@ const server = http.createServer((req, res) => {
       if (!id) { res.writeHead(400, {"content-type":"application/json"}).end(JSON.stringify({error:"Not a YouTube link"})); return; }
       const tmp = path.join(os.tmpdir(), "shortsmith-yt-" + id + ".mp4");
       const bin = "yt-dlp";
-      const args = ["-f", "best[ext=mp4][filesize<500M]/best[ext=mp4]/best", "--no-playlist", "-o", tmp, "--merge-output-format", "mp4", url];
+      const args = ["-f", "best[ext=mp4][filesize<2G]/best[ext=mp4]/best", "--no-playlist", "-o", tmp, "--merge-output-format", "mp4", url];
       console.log("yt-dlp fetching", id);
       execFile(bin, args, { timeout: 10 * 60 * 1000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err || !fs.existsSync(tmp)) {

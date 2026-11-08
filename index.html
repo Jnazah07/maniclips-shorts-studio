@@ -1529,14 +1529,15 @@
 
   function loadVideoFile(file) {
     if (!file || !file.type || file.type.indexOf("video/") !== 0) { showToast("Pick a video file"); return; }
-    if (file.size > 500 * 1024 * 1024) { statusTitle.textContent = "File too large"; statusMeta.textContent = "Over ~500 MB. Use a shorter clip or split it."; showToast("File too large (~500 MB max)"); return; }
+    if (file.size > 2 * 1024 * 1024 * 1024) { statusTitle.textContent = "File too large"; statusMeta.textContent = "Over ~2 GB. Use a shorter clip or split it."; showToast("File too large (~2 GB max)"); return; }
     if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
     var url = URL.createObjectURL(file);
     state.transcribed = false; state.segments = [];
     var temp = document.createElement("video");
     temp.preload = "metadata"; temp.src = url;
     temp.addEventListener("loadedmetadata", function () {
-      if (temp.duration > 600) { statusTitle.textContent = "Video too long"; statusMeta.textContent = "Over ~10 min. Upload a shorter clip; longer videos may freeze transcription."; showToast("Video too long (~10 min max for transcribe)"); return; }
+      if (temp.duration > 4200) { statusTitle.textContent = "Video too long"; statusMeta.textContent = "Over 70 min. Upload a shorter clip."; showToast("Video too long (70 min max)"); return; }
+      if (temp.duration > 600) { statusTitle.textContent = "Long video ready"; statusMeta.textContent = "Over 10 min: transcription will be slow. Captions Off cuts instantly."; }
       setVideo(url, { duration: temp.duration, file: file });
       sourceChip.textContent = file.name + " · " + Math.round((file.size/1024/1024)*10)/10 + " MB · " + Math.round(temp.duration) + "s · " + temp.videoWidth + "×" + temp.videoHeight;
       statusTitle.textContent = "Ready to transcribe";
@@ -1858,12 +1859,23 @@
       var pcm = new Float32Array(outLen);
       for (var i = 0; i < outLen; i++) pcm[i] = mono[Math.floor(i * step)];
       var langMap = { EN: "english", UR: "urdu", HI: "hindi", "UR-R": "urdu", "HI-R": "hindi" };
-      setStatus("Transcribing", "Running Whisper... (may take minutes)", 0.6);
-      var res = await whisperPipeline(pcm, { task: "transcribe", language: langMap[state.lang] || "english", chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
-      if (transcribeCancelFlag) throw new Error("cancelled");
-      var chunks = res.chunks || (res.text ? [{ text: res.text, timestamp: [0, decoded.duration] }] : []);
-      state.segments = chunks.map(function (c) { return { start: c.timestamp ? c.timestamp[0] : 0, end: c.timestamp ? c.timestamp[1] : 5, text: (c.text || "").trim() }; }).filter(function (c) { return c.text; });
+      var chunkSec = 300, chunkSamples = chunkSec * outRate, allChunks = [];
+      var nChunks = Math.ceil(pcm.length / chunkSamples);
+      for (var ci = 0; ci < nChunks; ci++) {
+        if (transcribeCancelFlag) throw new Error("cancelled");
+        setStatus("Transcribing", "Running Whisper chunk " + (ci + 1) + "/" + nChunks + "...", 0.6 + (ci / nChunks) * 0.35);
+        var slice = pcm.subarray(ci * chunkSamples, Math.min(pcm.length, (ci + 1) * chunkSamples));
+        var res = await whisperPipeline(slice, { task: "transcribe", language: langMap[state.lang] || "english", chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
+        var chunks = res.chunks || (res.text ? [{ text: res.text, timestamp: [0, chunkSec] }] : []);
+        var offset = ci * chunkSec;
+        chunks.forEach(function (c) {
+          var t = (c.text || "").trim(); if (!t) return;
+          allChunks.push({ start: (c.timestamp ? c.timestamp[0] : 0) + offset, end: (c.timestamp ? c.timestamp[1] : offset + 5) + offset, text: t });
+        });
+      }
+      state.segments = allChunks.filter(function (c) { return c.text; });
       if (!state.segments.length) { setStatus("No speech found", "Paste a transcript below to continue.", 0); showToast("No speech found"); return; }
+      renderSegments(); applyCaptionPreview();
       state.transcribed = true;
       renderSegments();
       setStatus("Transcript ready", state.segments.length + " segments. Click Generate to export.", 1);
