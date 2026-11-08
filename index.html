@@ -1188,7 +1188,7 @@
         <div class="status-meta" id="status-meta">Idle. Upload a video to begin.</div>
       </div>
       <div class="status-progress" aria-hidden="true"><span id="status-fill"></span></div>
-      <button class="btn-ghost" id="view-studio" type="button">View in Studio</button>
+      <button class="btn-ghost" id="view-studio-btn" type="button">View in Studio</button>
     </div>
 
     <main class="content" id="content" tabindex="-1">
@@ -2062,7 +2062,7 @@
     item.addEventListener("click", function () { showView(item.dataset.view); });
   });
 
-  document.getElementById("view-studio").addEventListener("click", function () { showView("studio"); });
+  document.getElementById("view-studio-btn").addEventListener("click", function () { showView("studio"); });
 
   /* sidebar */
 
