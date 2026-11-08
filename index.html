@@ -1510,12 +1510,19 @@
       setStatus("Ready to transcribe", "YouTube file loaded. Review captions, then Generate.", 0);
     } catch (e) {
       // Fallback to embed preview only (static hosting)
+      var onPages = location.hostname === "jnazah07.github.io" || location.hostname.endsWith(".github.io");
       state.videoUrl = null; state.duration = 0;
       previewVideo.hidden = true; previewVideo.style.display = "none"; previewVideo.removeAttribute("src");
       screenMedia.style.display = "none";
       ytFrame.hidden = false; ytFrame.style.display = "";
       ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?rel=0";
-      sourceChip.textContent = "YouTube preview " + id + " (download failed, preview only)";
+      if (onPages) {
+        sourceChip.textContent = "YouTube preview only. Link download needs your PC server (node server.js).";
+        statusTitle.textContent = "YouTube preview only";
+        statusMeta.textContent = "GitHub Pages cannot fetch YouTube files. Run node server.js on your PC or download the MP4 and use Upload.";
+      } else {
+        sourceChip.textContent = "YouTube preview " + id + " (download failed, preview only)";
+      }
       setStatus("YouTube preview only", "Local server could not fetch (try node server.js + yt-dlp). Upload the MP4 to generate.", 0);
       showToast("Could not download, showing preview only");
     } finally {
