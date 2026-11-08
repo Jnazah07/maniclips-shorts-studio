@@ -7,13 +7,27 @@ Single self-contained page: `index.html` with inline CSS and JS. No build
 step, no dependencies except Google Fonts (Space Grotesk + Inter) loaded
 from CDN, with system fallbacks if offline.
 
-## Run locally
+## Run locally (fast backend, recommended)
+
+```powershell
+python server.py
+```
+
+Requires Python 3.10-3.12, `yt-dlp`, `ffmpeg`, `faster-whisper`:
+
+```powershell
+pip install faster-whisper
+yt-dlp --version
+ffmpeg -version
+```
+
+Then open http://0.0.0.0:8080 (PC) or http://192.168.0.132:8080 on a phone on the same Wi-Fi (replace IP with your PC's).
+
+Fallback (browser-only, slower realtime export):
 
 ```powershell
 node server.js
 ```
-
-Then open http://0.0.0.0:8080 (PC) or http://192.168.0.132:8080 on a phone on the same Wi-Fi (replace IP with your PC's).
 
 Opening `index.html` directly from disk also works, but a server is
 recommended so `localStorage` settings persistence and service-worker
@@ -55,7 +69,7 @@ registration served over HTTP. Use the server above for `127.0.0.1`.
 - Installable PWA with offline shell (Whisper weights network on first run)
 - Responsive: desktop 2-column, tablet icon rail + stacked, phone bottom tab bar, 44px touch targets, reduced-motion and print support
 
-Limits: browser-only, no server. Reliable for short talks ~5 min; longer files warn and are slow on CPU. iOS Safari MediaRecorder limited — exports may be video-only.
+Limits: Fast backend needs Python + ffmpeg + faster-whisper on your PC. Browser fallback works anywhere (GitHub Pages) but export is realtime and Whisper is WASM. Short talks ~5 min transcribe fastest; up to 70 min is allowed with chunking.
 
 ## Rebrand
 
