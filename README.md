@@ -48,7 +48,9 @@ Shortsmith is installable on desktop and mobile:
   the real install (offline app shell, own window, taskbar icon).
 - **Android**: the phone must reach the engine, so PWA install needs HTTPS.
   Over plain HTTP on a LAN address Chrome will not offer the prompt; use
-  Add to Home screen from the browser menu instead.
+  Add to Home screen from the browser menu instead. First allow the phone in:
+  run `allow-phone-access.ps1` as administrator (Windows Firewall blocks
+  inbound 8080 otherwise).
 - **iPhone / iPad (Safari)**: Share > Add to Home Screen (the Install button
   shows this hint on iOS).
 
