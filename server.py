@@ -21,6 +21,11 @@ except Exception:
     HAS_FW = False
     WhisperModel = None
 
+try:
+    import numpy as np
+except Exception:
+    np = None
+
 def yt_id(u: str):
     import re
     for pat in [r"youtu\.be/([^\?&]+)", r"[?&]v=([^\?&]+)", r"embed/([^\?&]+)", r"shorts/([^\?&]+)"]:
@@ -31,7 +36,7 @@ def yt_id(u: str):
 
 def run(job, cmd):
     job["log"] = " ".join(cmd)
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if p.returncode != 0:
         raise RuntimeError((p.stderr or p.stdout or "cmd failed")[:800])
     return p
@@ -193,6 +198,128 @@ def build_ass(path, w, h, start, length, segments, opts):
 def _ff_escape(p):
     return str(p).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
+
+_DETECTOR = None
+
+
+def _detector():
+    """(cv2, [cascades]) once, or (None, None). OpenCV 5 dropped the Haar classes, hence the guard."""
+    global _DETECTOR
+    if _DETECTOR is not None:
+        return _DETECTOR
+    try:
+        import cv2
+    except Exception:
+        _DETECTOR = (None, None)
+        return _DETECTOR
+    cascades = []
+    for name in ("haarcascade_frontalface_default.xml", "haarcascade_frontalface_alt2.xml"):
+        try:
+            cascade = cv2.CascadeClassifier(cv2.data.haarcascades + name)
+            if not cascade.empty():
+                cascades.append(cascade)
+        except Exception:
+            pass
+    _DETECTOR = (cv2, cascades) if cascades else (None, None)
+    return _DETECTOR
+
+
+def _weighted_median(hits):
+    hits = sorted(hits, key=lambda h: h[0])
+    total = sum(h[2] for h in hits)
+    acc = 0.0
+    for hit in hits:
+        acc += hit[2]
+        if acc >= total / 2.0:
+            return hit
+    return hits[-1]
+
+
+def _sample_gray(src, start, length, n, width, dims=None):
+    """Pull n evenly spaced grey frames through ffmpeg in one pass. Returns (frames, w, h)."""
+    sw, sh = dims or (16, 9)
+    dh = max(2, int(round(width * float(sh) / max(1.0, float(sw)))) // 2 * 2)
+    cmd = ["ffmpeg", "-v", "error", "-ss", f"{max(0.0, float(start)):.3f}", "-t", f"{float(length):.3f}",
+           "-i", str(src), "-vf", f"fps={n / max(0.1, float(length)):.5f},scale={width}:{dh}",
+           "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, stdin=subprocess.DEVNULL, timeout=120)
+    except Exception:
+        return [], width, dh
+    block = width * dh
+    raw = proc.stdout or b""
+    frames = [raw[i:i + block] for i in range(0, len(raw) - block + 1, block)]
+    return frames, width, dh
+
+
+def subject_center(src, start, length, samples=8, min_share=0.3, dims=None):
+    """Largest recurring face in the clip -> one stable crop centre (no per-frame pan jitter).
+
+    Returns x/y as fractions of the frame (0-1), so callers never mix up source and upscaled pixels.
+    Falls back to None (dead-centre crop) when the evidence is thin, because a wrong guess frames
+    the subject worse than simply staying centred.
+    """
+    cv2, cascades = _detector()
+    if cv2 is None or np is None:
+        return None
+    n = max(3, int(samples))
+    frames, dw, dh = _sample_gray(src, start, length, n, 640, dims)
+    if len(frames) < 3:
+        return None
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    min_side = max(24, int(dw * 0.04))
+    hits = []
+    for raw in frames:
+        gray = clahe.apply(np.frombuffer(raw, np.uint8).reshape(dh, dw).copy())
+        faces = []
+        for cascade in cascades:  # first cascade usually wins; the second only runs on a miss
+            found = cascade.detectMultiScale(gray, scaleFactor=1.15, minNeighbors=3,
+                                             minSize=(min_side, min_side))
+            faces = [f for f in found if 0.6 <= (f[2] / float(f[3])) <= 1.5]
+            if faces:
+                break
+        if not faces:
+            continue
+        fx, fy, ffw, ffh = max(faces, key=lambda f: int(f[2]) * int(f[3]))
+        hits.append((float(fx + ffw / 2.0), float(fy + ffh / 2.0), float(ffw * ffh)))
+    if not hits:
+        return None
+    # Keep only hits near the weighted median; a stray detection on a cutaway must not drag the crop.
+    seed = _weighted_median(hits)
+    keep = [h for h in hits if abs(h[0] - seed[0]) <= dw * 0.18] or [seed]
+    share = len(keep) / float(n)
+    if share < min_share:
+        return None
+    pick = _weighted_median(keep)
+    # Confidence ramps 0.3 -> 0.7 of frame share, so a shaky read drifts toward centre, not past it.
+    confidence = min(1.0, (share - min_share) / 0.4)
+    return {"x": 0.5 + (pick[0] / float(dw) - 0.5) * confidence,
+            "y": 0.5 + (pick[1] / float(dh) - 0.5) * confidence,
+            "hits": len(keep), "seen": len(hits), "confidence": round(confidence, 2)}
+
+
+def subject_crop_prefix(src, start, length, target_w, target_h, sw, sh, label=""):
+    """ffmpeg filter prefix that crops the source around the subject before scaling."""
+    if not sw or not sh or not target_w or not target_h:
+        return "", None
+    track = subject_center(src, start, length, dims=(sw, sh))
+    cw = int(round(sh * (target_w / float(target_h))))
+    ch = sh
+    if cw >= sw:
+        cw = sw - (sw % 2)
+        ch = int(round(sw * (target_h / float(target_w))))
+        ch -= ch % 2
+        if ch >= sh:
+            return "", track
+    cw -= cw % 2
+    if cw < sw:
+        cx = sw * track["x"] if track else sw / 2.0
+        x = int(max(0, min(sw - cw, round(cx - cw / 2.0))))
+        return f"crop={cw}:{ch}:{x}:0,", track
+    cy = sh * track["y"] if track else sh / 2.0
+    y = int(max(0, min(sh - ch, round(cy - ch / 2.0))))
+    return f"crop={cw}:{ch}:0:{y},", track
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -232,8 +359,10 @@ class H(BaseHTTPRequestHandler):
             self._json(200, {"clips": items[:60]})
             return
         if u.path == "/api/health":
+            _, _cascade = _detector()
             self._json(200, {"ok": True, "backend": "python", "faster_whisper": HAS_FW, "ffmpeg": True,
-                             "planner": True, "presets": True, "version": "1.2.0"})
+                             "opencv": _cascade is not None, "planner": True, "presets": True,
+                             "version": "1.3.0"})
             return
         if u.path.startswith("/data/clips/") or u.path.startswith("/data/uploads/"):
             p = ROOT / u.path.lstrip("/")
@@ -373,6 +502,7 @@ class H(BaseHTTPRequestHandler):
             capY = float(data.get("capY") or 54)
             wantCaps = bool(data.get("captions") if "captions" in data else bool(segments))
             hook = bool(data.get("hook", True))
+            center = bool(data.get("center", True))
             job_id = uuid.uuid4().hex[:8]
             job = {"id": job_id, "status": "running", "progress": 5, "clips": []}
             with jobs_lock:
@@ -385,6 +515,15 @@ class H(BaseHTTPRequestHandler):
                     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(src)], capture_output=True, text=True)
                     dur = float((probe.stdout or "0").strip() or 0)
                     w, h = (720, 1280) if ratio == "9:16" else (720, 720) if ratio == "1:1" else (1280, 720)
+                    sw = sh = 0
+                    try:
+                        dims = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                                               "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x",
+                                               str(src)], capture_output=True, text=True)
+                        parts = (dims.stdout or "").strip().split("x")
+                        sw, sh = int(parts[0]), int(parts[1])
+                    except Exception:
+                        sw = sh = 0
                     plan = data.get("plan") or []
                     if plan:
                         cuts = []
@@ -403,19 +542,22 @@ class H(BaseHTTPRequestHandler):
                         start = max(0.0, cut["start"])
                         seg_len = max(1.0, min(cut["len"], (dur - start) if dur else cut["len"]))
                         outp = CLIPS / f"shortsmith-{job_id}-{i+1:02d}.mp4"
+                        pre, track = ("", None)
+                        if center:
+                            pre, track = subject_crop_prefix(src, start, seg_len, w, h, sw, sh)
                         ass_path = DATA / f"caps-{job_id}-{i+1:02d}.ass"
                         build_ass(ass_path, w, h, start, seg_len, segments, {
                             "capStyle": capStyle, "capFont": capFont, "capSize": capSize, "capY": capY,
                             "captions": wantCaps, "hook": hook, "hookText": cut.get("title") or "",
                         })
                         if bg == "blur" and fit == "blur":
-                            fc = f"[0:v]split=2[b][m];[b]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma=18[bg];[m]scale={w}:{h}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p"
+                            fc = "[0:v]" + pre + f"split=2[b][m];[b]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma=18[bg];[m]scale={w}:{h}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p"
                         elif bg == "solid":
-                            fc = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=#1a2e2a,format=yuv420p"
+                            fc = "[0:v]" + pre + f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=#1a2e2a,format=yuv420p"
                         elif fit == "full":
-                            fc = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},format=yuv420p"
+                            fc = "[0:v]" + pre + f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},format=yuv420p"
                         else:
-                            fc = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
+                            fc = "[0:v]" + pre + f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
                         fc += f",subtitles='{_ff_escape(ass_path)}'"
                         run(job, ["ffmpeg", "-y", "-ss", str(start), "-t", str(seg_len), "-i", str(src),
                                   "-filter_complex", fc, "-c:a", "aac", "-b:a", "128k", str(outp)])
@@ -425,7 +567,9 @@ class H(BaseHTTPRequestHandler):
                             pass
                         clips.append({"url": f"/data/clips/{outp.name}", "name": outp.name,
                                       "start": round(start, 2), "len": round(seg_len, 2),
-                                      "title": cut.get("title") or ""})
+                                      "title": cut.get("title") or "",
+                                      "subject": ({"x_pct": round(track["x"] * 100), "hits": track["hits"],
+                                                   "seen": track["seen"]} if track else None)})
                         job["progress"] = 5 + int((i + 1) / total_cuts * 90)
                     job.update(status="done", progress=100,
                                clips=[c["url"] for c in clips], items=clips)
@@ -488,4 +632,5 @@ class H(BaseHTTPRequestHandler):
             return
         self.send_response(404); self.end_headers()
 
-ThreadingHTTPServer(("0.0.0.0", 8080), H).serve_forever()
+if __name__ == "__main__":
+    ThreadingHTTPServer(("0.0.0.0", 8080), H).serve_forever()

@@ -140,16 +140,18 @@ async def shortsmith_generate(
     cap_y: float = 54,
     background: str = "blur",
     fit: str = "blur",
+    center: bool = True,
     wait: bool = True,
 ) -> dict:
     """Cut, crop, burn captions and hook titles. Returns clip URLs.
 
     ratio: 9:16, 1:1 or 16:9. cap_style: teal, yellow or minimal.
+    center: keep the speaker framed by cropping around the detected face.
     plan: the cuts list from shortsmith_plan (recommended); omit for even slices.
     """
     payload = {
         "file_id": file_id, "length": int(length), "ratio": ratio,
-        "captions": bool(captions), "hook": bool(hook),
+        "captions": bool(captions), "hook": bool(hook), "center": bool(center),
         "capStyle": cap_style, "capFont": cap_font, "capSize": int(cap_size), "capY": float(cap_y),
         "bg": background, "fit": fit,
     }
@@ -206,6 +208,7 @@ async def shortsmith_make_shorts(
     hook: bool = True,
     cap_style: str = "teal",
     cap_font: str = "space",
+    center: bool = True,
 ) -> dict:
     """One shot: download, transcribe, plan and render shorts from a YouTube link."""
     ingested = await shortsmith_ingest(youtube_url)
@@ -215,7 +218,7 @@ async def shortsmith_make_shorts(
     rendered = await shortsmith_generate(
         file_id=file_id, length=length, ratio=ratio, plan=planned["cuts"],
         segments=transcript["segments"], captions=captions, hook=hook,
-        cap_style=cap_style, cap_font=cap_font,
+        cap_style=cap_style, cap_font=cap_font, center=center,
     )
     return {
         "file_id": file_id,

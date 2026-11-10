@@ -1,0 +1,6 @@
+# Shortsmith engine (python server.py)
+# Python 3.10-3.12. OpenCV is pinned below 5: 5.0 dropped the Haar face cascade
+# that "Center on speaker" uses, and it silently falls back to a centred crop.
+faster-whisper>=1.0
+opencv-python-headless>=4.8,<5
+yt-dlp>=2024.1.1

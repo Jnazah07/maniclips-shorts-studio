@@ -1178,7 +1178,7 @@
         <h1 class="topbar-title" id="topbar-title">Shorts Studio</h1>
         <p class="topbar-sub" id="topbar-sub">Configure and generate shorts</p>
       </div>
-      <span class="version">v1.2.0</span>
+      <span class="version">v1.3.0</span>
     </header>
 
     <div class="statusbar" role="status" aria-live="polite">
@@ -1209,7 +1209,7 @@
             <input type="url" id="yt-url" placeholder="Paste YouTube link (youtube.com/watch?v=...)" aria-label="YouTube link" style="flex:1;min-width:220px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text)">
             <button class="btn-ghost" id="yt-load" type="button">Load YouTube</button>
           </div>
-          <p style="margin:8px 0 0;font-size:12.5px;color:var(--text-3)">YouTube links preview in-app only. To make shorts, download the video and upload the MP4. Browsers cannot pull YouTube files directly.</p>
+          <p id="url-hint" style="margin:8px 0 0;font-size:12.5px;color:var(--text-3)">The engine downloads the link and transcribes it on this PC, then renders the cuts with ffmpeg.</p>
         </div>
 
         <div class="workspace">
@@ -1351,6 +1351,17 @@
               </div>
 
               <div class="field">
+                <div class="switch-row">
+                  <div class="field-label">
+                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c1.2-3.6 3.7-5.6 7-5.6s5.8 2 7 5.6"/></svg>
+                    <span id="center-label">Center on speaker</span>
+                  </div>
+                  <button class="switch" id="center" role="switch" aria-checked="true" aria-labelledby="center-label">On</button>
+                </div>
+                <p class="helper">Crops around the detected face so the speaker stays framed instead of dead center.</p>
+              </div>
+
+              <div class="field">
                 <div class="field-label"><span>My styles</span></div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <input id="preset-name" maxlength="40" placeholder="Name this recipe" aria-label="Style recipe name" style="flex:1;min-width:140px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text);font:inherit">
@@ -1483,16 +1494,22 @@
   var screenTint = document.getElementById("screen-tint");
   var screenMedia = document.getElementById("screen-empty");
   var ytFrame = document.getElementById("yt-frame");
-  var backend = { mode: "wasm", faster: false };
+  var backend = { mode: "wasm", faster: false, center: false };
+  var urlHint = document.getElementById("url-hint");
   async function detectBackend() {
     try {
       var r = await fetch("/api/health"); if (!r.ok) return;
       var j = await r.json();
       if (j.backend === "python") {
         backend.mode = "python"; backend.faster = !!j.faster_whisper;
+        backend.center = !!j.opencv;
+        if (urlHint) urlHint.textContent = "The engine downloads the link and transcribes it on this PC, then renders the cuts with ffmpeg.";
+        if (!backend.center) setSwitch(document.getElementById("center"), "center", false);
         document.getElementById("transcribe-helper").textContent = j.faster_whisper ? "Fast backend connected. Transcribe runs on your PC (faster-whisper)." : "Backend found but faster-whisper missing. Run: pip install faster-whisper";
       }
-    } catch (e) {}
+    } catch (e) {
+      if (urlHint) urlHint.textContent = "This page is static, so the browser cannot pull YouTube files. Run python server.py on your PC, or download the MP4 and use Upload.";
+    }
   }
   detectBackend();
   var captionBand = document.getElementById("caption-band");
@@ -1519,6 +1536,7 @@
     capSize: 28,
     smart: true,
     hook: true,
+    center: true,
     plan: [],
     model: "tiny",
     progress: 0.12,
@@ -1670,6 +1688,7 @@
         capSize: state.capSize,
         smart: state.smart,
         hook: state.hook,
+        center: state.center,
         capY: captionBand.getAttribute("aria-valuenow"),
         collapsed: app.dataset.collapsed
       }));
@@ -1776,6 +1795,8 @@
     var hookNode = document.getElementById("hook");
     if (saved.smart === false && smartNode) { state.smart = false; smartNode.setAttribute("aria-checked", "false"); smartNode.textContent = "Off"; }
     if (saved.hook === false && hookNode) { state.hook = false; hookNode.setAttribute("aria-checked", "false"); hookNode.textContent = "Off"; }
+    var centerNode = document.getElementById("center");
+    if (saved.center === false && centerNode) { state.center = false; centerNode.setAttribute("aria-checked", "false"); centerNode.textContent = "Off"; }
 
     var y = parseFloat(saved.capY);
     if (y >= 14 && y <= 86) {
@@ -2210,6 +2231,7 @@
   var PRESET_KEY = "shortsmith.styles.v1";
   var smartSwitch = document.getElementById("smart");
   var hookSwitch = document.getElementById("hook");
+  var centerSwitch = document.getElementById("center");
 
   function fmtClock(s) {
     s = Math.max(0, Math.round(Number(s) || 0));
@@ -2283,7 +2305,7 @@
     return {
       length: state.length, ratio: state.ratio, bg: state.bg, fit: state.fit,
       captions: state.captions, capStyle: state.capStyle, capFont: state.capFont,
-      capSize: state.capSize, capY: capYValue(), smart: state.smart, hook: state.hook
+      capSize: state.capSize, capY: capYValue(), smart: state.smart, hook: state.hook, center: state.center
     };
   }
 
@@ -2344,6 +2366,7 @@
     if (typeof s.captions === "boolean" && s.captions !== state.captions) captionsSwitch.click();
     if (typeof s.smart === "boolean") setSwitch(smartSwitch, "smart", s.smart);
     if (typeof s.hook === "boolean") setSwitch(hookSwitch, "hook", s.hook);
+    if (typeof s.center === "boolean") setSwitch(centerSwitch, "center", s.center);
     var y = parseFloat(s.capY);
     if (y >= 14 && y <= 86) {
       captionBand.style.setProperty("--cap-y", y + "%");
@@ -2366,6 +2389,10 @@
   });
   hookSwitch.addEventListener("click", function () {
     setSwitch(hookSwitch, "hook", !state.hook);
+    saveState();
+  });
+  centerSwitch.addEventListener("click", function () {
+    setSwitch(centerSwitch, "center", !state.center);
     saveState();
   });
 
@@ -2413,7 +2440,7 @@
         if (!fid) { setStatus("Generate failed", "File not on server. Re-upload via Upload.", 0); return; }
         if (state.smart && !state.plan.length) { await loadPlan(true); }
         setStatus("Making shorts", state.plan.length ? "Cutting " + state.plan.length + " planned moments..." : "Sending to fast backend (ffmpeg)...", 0.08);
-        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: capYValue(), hook: state.hook, plan: state.plan.map(function (p) { return { start: p.start, len: p.end - p.start, title: p.title }; }) }) });
+        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: capYValue(), hook: state.hook, center: state.center, plan: state.plan.map(function (p) { return { start: p.start, len: p.end - p.start, title: p.title }; }) }) });
         var gj = await gr.json();
         var poll = setInterval(async () => {
           try {
