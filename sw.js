@@ -2,7 +2,7 @@
 // Cache-first app shell for installability and offline use.
 // Whisper weights are never precached (too large, cached by library).
 
-var CACHE = "shortsmith-v1.2.0";
+var CACHE = "shortsmith-v1.3.0";
 var SHELL = [
   "./",
   "./index.html",
@@ -41,6 +41,25 @@ self.addEventListener("fetch", function (event) {
   var url = new URL(req.url);
   // External assets (fonts, preview image) go network-first.
   if (url.origin !== location.origin) return;
+
+  // Page updates must always land: navigations are network-first, cache is the offline copy.
+  var accept = req.headers.get("accept") || "";
+  if (req.mode === "navigate" || accept.indexOf("text/html") !== -1) {
+    event.respondWith(
+      fetch(req).then(function (response) {
+        if (response && response.status === 200) {
+          var copy = response.clone();
+          caches.open(CACHE).then(function (cache) { cache.put(req, copy); });
+        }
+        return response;
+      }).catch(function () {
+        return caches.match(req).then(function (hit) {
+          return hit || caches.match("./index.html");
+        });
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then(function (cached) {

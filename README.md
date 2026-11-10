@@ -1,7 +1,9 @@
-# Shortsmith - Shorts Studio (web edition)
+# Shortsmith - Shorts Studio
 
-Rebranded web recreation of the desktop Shorts Studio screen, built from
-runtime observation of the reference desktop app (Tauri v2 / WebView2).
+Paste a YouTube link, get ranked vertical shorts. Shortsmith started as a study
+of a desktop shorts app and grew its own pipeline: a transcript-driven cut
+planner, burned hook headlines, reusable style recipes, and an MCP server so an
+agent can run the whole thing.
 
 Single self-contained page: `index.html` with inline CSS and JS. No build
 step, no dependencies except Google Fonts (Space Grotesk + Inter) loaded
@@ -58,18 +60,55 @@ registration served over HTTP. Use the server above for `127.0.0.1`.
 ## Features
 
 - Shorts Studio shell: sidebar, top bar, status bar with real progress
-- Upload long video (picker or drop), preview in phone, play + scrub real video
-- Whisper WASM transcription (Tiny ~75 MB, Base ~500 MB) with progress + cancel; segments clickable to seek, editable textarea fallback when Whisper fails
-- Caption language = spoken language: EN / UR / HI / UR-R / HI-R (native script, UR-R/HI-R same as UR/HI)
-- Caption style (Teal Pill / Bold Yellow / Minimal White), font (Space Grotesk / Inter / System Bold), size slider, draggable position
-- Short length: 20s / 30s / 45s / 60s (up to 12 clips, realtime export)
-- Generate real vertical shorts via Canvas + MediaRecorder (WebM, MP4 where supported) with background blur / solid / image and fit blur-fill / full-screen, downloadable list
-- Captions Off: Generate works immediately, no Whisper download, clean cuts
-- Settings persist in `localStorage`
-- Installable PWA with offline shell (Whisper weights network on first run)
+- Paste a YouTube link and the PC engine downloads it with `yt-dlp`; upload also works
+- **Smart cuts**: ranks clip windows from the transcript by speech density, hook words and clean sentence boundaries instead of slicing every N seconds; every cut shows a score and an editable headline
+- **Hook titles**: an uppercase headline burned into the first seconds of each clip
+- **My styles**: save the current length, ratio, captions, font, caption box and background as one named recipe, restore it in one tap, and share recipes with the MCP server
+- Whisper transcription: `faster-whisper` on the PC engine (fast) or Whisper WASM in the browser fallback; segments clickable to seek, editable textarea
+- Caption language = spoken language: EN / UR / HI / UR-R / HI-R (native script)
+- Caption style (Teal Pill / Bold Yellow / Minimal White), font (Space Grotesk / Inter / System), size slider, draggable position; burned with libass so what you preview is what renders
+- Short length: 20s / 30s / 45s / 60s, up to 12 clips per run
+- Cuts are rendered by ffmpeg on the PC, not recorded in realtime, with background blur / solid and fit blur-fill / full-screen
+- Clip cards show the headline, start time and planner score, plus a direct download
+- Settings persist in `localStorage`; style recipes persist locally and on the engine
+- Installable PWA with offline shell
 - Responsive: desktop 2-column, tablet icon rail + stacked, phone bottom tab bar, 44px touch targets, reduced-motion and print support
 
-Limits: Fast backend needs Python + ffmpeg + faster-whisper on your PC. Browser fallback works anywhere (GitHub Pages) but export is realtime and Whisper is WASM. Short talks ~5 min transcribe fastest; up to 70 min is allowed with chunking.
+Limits: the fast path needs Python 3.10-3.12 + `ffmpeg` + `faster-whisper` + `yt-dlp` on your PC. The browser fallback works anywhere (GitHub Pages) but export is realtime and Whisper is WASM. Up to 70 min / 2 GB per source; transcription is the slow part on CPU.
+
+## MCP server
+
+`mcp_server.py` exposes the same engine to an agent over stdio. Start the engine
+first, then let OpenCode launch the MCP server:
+
+```jsonc
+{
+  "mcp": {
+    "servers": {
+      "shortsmith": {
+        "type": "local",
+        "command": ["python", "C:/Users/Hina/Documents/Default Project/shortsmith/mcp_server.py"],
+        "environment": { "SHORTSMITH_URL": "http://127.0.0.1:8080" }
+      }
+    }
+  }
+}
+```
+
+Tools:
+
+| Tool | Use |
+| --- | --- |
+| `shortsmith_health` | engine, ffmpeg, faster-whisper, planner, version |
+| `shortsmith_ingest` | download a YouTube link, returns `file_id` |
+| `shortsmith_transcribe` | faster-whisper segments for the file |
+| `shortsmith_plan` | ranked cuts with score, title, words, hooks |
+| `shortsmith_generate` | cut, crop, burn captions + hooks, returns clip URLs |
+| `shortsmith_make_shorts` | one shot: ingest, transcribe, plan, render |
+| `shortsmith_job_status` | progress, log line, or error |
+| `shortsmith_clips` | recent renders with URLs and sizes |
+| `shortsmith_styles` | list or save style recipes |
+
 
 ## Rebrand
 

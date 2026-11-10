@@ -1178,7 +1178,7 @@
         <h1 class="topbar-title" id="topbar-title">Shorts Studio</h1>
         <p class="topbar-sub" id="topbar-sub">Configure and generate shorts</p>
       </div>
-      <span class="version">v1.1.0</span>
+      <span class="version">v1.2.0</span>
     </header>
 
     <div class="statusbar" role="status" aria-live="polite">
@@ -1329,6 +1329,38 @@
               </div>
 
               <div class="field">
+                <div class="switch-row">
+                  <div class="field-label">
+                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4.5 13.5H11l-1 8.5 9-12h-6.5z"/></svg>
+                    <span id="smart-label">Smart cuts</span>
+                  </div>
+                  <button class="switch" id="smart" role="switch" aria-checked="true" aria-labelledby="smart-label">On</button>
+                </div>
+                <p class="helper">Picks the moments worth clipping from the transcript, not every Nth second.</p>
+              </div>
+
+              <div class="field">
+                <div class="switch-row">
+                  <div class="field-label">
+                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
+                    <span id="hook-label">Hook titles</span>
+                  </div>
+                  <button class="switch" id="hook" role="switch" aria-checked="true" aria-labelledby="hook-label">On</button>
+                </div>
+                <p class="helper">Burns an editable headline on the first seconds of each clip.</p>
+              </div>
+
+              <div class="field">
+                <div class="field-label"><span>My styles</span></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <input id="preset-name" maxlength="40" placeholder="Name this recipe" aria-label="Style recipe name" style="flex:1;min-width:140px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text);font:inherit">
+                  <button class="btn-ghost" id="preset-save" type="button">Save</button>
+                </div>
+                <div id="preset-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+                <p class="helper">One tap restores length, ratio, captions, font and background together.</p>
+              </div>
+
+              <div class="field">
                 <div class="field-label" id="lang-label"><span>Caption language</span></div>
                 <div class="chips" role="radiogroup" aria-labelledby="lang-label" data-group="lang" id="lang-chips">
                   <button class="chip" role="radio" aria-checked="true" data-value="EN">EN</button>
@@ -1386,6 +1418,7 @@
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5 19 12 5 19.5z"/></svg>
                 Generate shorts
               </button>
+              <button class="btn-ghost" id="plan-btn" type="button">Plan cuts</button>
               <button class="btn-ghost" id="generate-cancel" type="button" hidden>Cancel</button>
               <button class="btn-icon" id="reset" type="button" aria-label="Reset settings">
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v5h5"/><path d="M4.6 14a8 8 0 1 0 .9-6.2L4 10"/></svg>
@@ -1394,6 +1427,12 @@
           </aside>
 
         </div>
+
+        <section class="shorts-section" id="plan-section" aria-label="Smart cut plan" style="margin-top:22px;display:none">
+          <h3 style="margin:0 0 6px;font-family:var(--font-display)">Smart cut plan</h3>
+          <p id="plan-note" style="margin:0 0 12px;font-size:12.5px;color:var(--text-3)">Ranked by speech density and hook strength. Edit any headline before generating.</p>
+          <div id="plan-list" style="display:grid;gap:10px"></div>
+        </section>
 
         <section class="shorts-section" id="shorts-section" aria-label="Generated shorts" style="margin-top:22px;display:none">
           <h3 style="margin:0 0 10px;font-family:var(--font-display)">Shorts</h3>
@@ -1478,6 +1517,9 @@
     capStyle: "teal",
     capFont: "space",
     capSize: 28,
+    smart: true,
+    hook: true,
+    plan: [],
     model: "tiny",
     progress: 0.12,
     playing: false,
@@ -1494,6 +1536,8 @@
     state.videoUrl = url;
     if (meta && meta.duration) state.duration = meta.duration;
     if (meta && meta.file) state.videoFile = meta.file;
+    state.plan = [];
+    if (typeof renderPlan === "function") renderPlan();
     if (url) {
       previewVideo.src = url;
       previewVideo.hidden = false;
@@ -1624,6 +1668,8 @@
         capStyle: state.capStyle,
         capFont: state.capFont,
         capSize: state.capSize,
+        smart: state.smart,
+        hook: state.hook,
         capY: captionBand.getAttribute("aria-valuenow"),
         collapsed: app.dataset.collapsed
       }));
@@ -1725,6 +1771,11 @@
     if (saved.capStyle) pick("capstyle", saved.capStyle);
     if (saved.capFont) pick("capfont", saved.capFont);
     if (saved.capSize) state.capSize = saved.capSize;
+
+    var smartNode = document.getElementById("smart");
+    var hookNode = document.getElementById("hook");
+    if (saved.smart === false && smartNode) { state.smart = false; smartNode.setAttribute("aria-checked", "false"); smartNode.textContent = "Off"; }
+    if (saved.hook === false && hookNode) { state.hook = false; hookNode.setAttribute("aria-checked", "false"); hookNode.textContent = "Off"; }
 
     var y = parseFloat(saved.capY);
     if (y >= 14 && y <= 86) {
@@ -2119,11 +2170,11 @@
     var hit = state.segments.find(function (s) { return t >= s.start && t < s.end; });
     return hit ? hit.text : "";
   }
-  function appendShort(blob, i, urlOverride) {
+  function appendShort(blob, i, urlOverride, meta) {
     var url = urlOverride || URL.createObjectURL(blob);
     var ext = urlOverride ? "mp4" : (blob.type.indexOf("mp4") >= 0 ? "mp4" : "webm");
-    var name = "shortsmith-short-" + String(i + 1).padStart(2, "0") + "." + ext;
-    state.shorts.push({ url: url, name: name, mime: blob.type });
+    var name = (meta && meta.name) || ("shortsmith-short-" + String(i + 1).padStart(2, "0") + "." + ext);
+    state.shorts.push({ url: url, name: name, mime: blob.type, title: meta && meta.title });
     var sec = document.getElementById("shorts-section");
     var list = document.getElementById("shorts-list");
     sec.style.display = "";
@@ -2134,11 +2185,221 @@
     v.style.cssText = "width:100%;border-radius:10px;background:#000";
     var a = document.createElement("a");
     a.href = url; a.download = name;
-    a.textContent = "Download " + name + " (short download)";
+    a.textContent = "Download clip";
     a.style.cssText = "display:inline-flex;align-items:center;min-height:44px;margin-top:8px;color:#99f6e4;font-size:13px;font-weight:600";
+    if (meta && (meta.title || meta.score != null)) {
+      var cap = document.createElement("p");
+      var bits = [];
+      if (meta.title) bits.push("\u201C" + meta.title + "\u201D");
+      if (meta.start != null) bits.push("from " + fmtClock(meta.start));
+      if (meta.score != null) bits.push("score " + Number(meta.score).toFixed(1));
+      cap.textContent = bits.join(" · ");
+      cap.style.cssText = "margin:0 0 8px;font-size:12px;color:var(--text-2);line-height:1.4";
+      card.appendChild(cap);
+    }
     card.appendChild(v); card.appendChild(a);
     list.appendChild(card);
   }
+  /* smart cut plan + my styles */
+
+  var planSection = document.getElementById("plan-section");
+  var planList = document.getElementById("plan-list");
+  var planBtn = document.getElementById("plan-btn");
+  var presetList = document.getElementById("preset-list");
+  var presetName = document.getElementById("preset-name");
+  var PRESET_KEY = "shortsmith.styles.v1";
+  var smartSwitch = document.getElementById("smart");
+  var hookSwitch = document.getElementById("hook");
+
+  function fmtClock(s) {
+    s = Math.max(0, Math.round(Number(s) || 0));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function capYValue() {
+    return parseFloat(captionBand.getAttribute("aria-valuenow")) || 54;
+  }
+
+  function renderPlan() {
+    if (!state.plan.length) { planSection.style.display = "none"; return; }
+    planSection.style.display = "";
+    planList.textContent = "";
+    state.plan.forEach(function (cut, i) {
+      var row = document.createElement("div");
+      row.style.cssText = "display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)";
+      var idx = document.createElement("span");
+      idx.textContent = "#" + (i + 1);
+      idx.style.cssText = "font-family:var(--font-display);font-weight:600;color:var(--text-2)";
+      var body = document.createElement("div");
+      body.style.cssText = "display:grid;gap:4px;min-width:0";
+      var title = document.createElement("input");
+      title.value = cut.title || "";
+      title.setAttribute("aria-label", "Hook title for clip " + (i + 1));
+      title.style.cssText = "width:100%;min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text);font:inherit;font-size:13.5px";
+      title.addEventListener("input", function () { cut.title = title.value; });
+      var meta = document.createElement("span");
+      meta.textContent = fmtClock(cut.start) + " to " + fmtClock(cut.end) + " · " + cut.words + " words · " + cut.hooks + " hooks";
+      meta.style.cssText = "font-size:11.5px;color:var(--text-3)";
+      body.appendChild(title);
+      body.appendChild(meta);
+      var score = document.createElement("span");
+      score.textContent = "score " + Number(cut.score || 0).toFixed(1);
+      score.style.cssText = "font-size:11.5px;font-weight:600;color:#5eead4;border:1px solid rgba(45,212,191,.35);border-radius:999px;padding:5px 9px;white-space:nowrap";
+      row.appendChild(idx);
+      row.appendChild(body);
+      row.appendChild(score);
+      planList.appendChild(row);
+    });
+  }
+  window.__shortsmith.renderPlan = renderPlan;
+
+  async function loadPlan(quiet) {
+    if (!state.videoFile) { showToast("Load a video first"); return false; }
+    if (backend.mode !== "python") { showToast("Smart cuts need the local backend"); return false; }
+    planBtn.disabled = true;
+    if (!quiet) setStatus("Planning cuts", "Scoring the transcript for hooks...", 0.3);
+    try {
+      var r = await fetch("/api/plan", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ file_id: state.videoFile.name, length: parseLen(), segments: state.segments, duration: state.duration })
+      });
+      var j = await r.json();
+      if (!r.ok) throw new Error(j.error || "plan failed");
+      state.plan = j.cuts || [];
+      renderPlan();
+      setStatus("Plan ready", state.plan.length + " cuts ranked. Edit headlines, then Generate.", 1);
+      return true;
+    } catch (e) {
+      setStatus("Plan failed", String((e && e.message) || e), 0);
+      return false;
+    } finally {
+      planBtn.disabled = false;
+    }
+  }
+
+  planBtn.addEventListener("click", function () { loadPlan(false); });
+
+  function styleFromState() {
+    return {
+      length: state.length, ratio: state.ratio, bg: state.bg, fit: state.fit,
+      captions: state.captions, capStyle: state.capStyle, capFont: state.capFont,
+      capSize: state.capSize, capY: capYValue(), smart: state.smart, hook: state.hook
+    };
+  }
+
+  function readPresets() {
+    try { return JSON.parse(localStorage.getItem(PRESET_KEY) || "{}") || {}; } catch (e) { return {}; }
+  }
+
+  function renderPresets() {
+    var presets = readPresets();
+    presetList.textContent = "";
+    var names = Object.keys(presets);
+    if (!names.length) {
+      var empty = document.createElement("span");
+      empty.textContent = "No recipes saved yet";
+      empty.style.cssText = "font-size:12px;color:var(--text-3)";
+      presetList.appendChild(empty);
+      return;
+    }
+    names.forEach(function (name) {
+      var chip = document.createElement("span");
+      chip.style.cssText = "display:inline-flex;align-items:stretch;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;background:var(--surface-raised)";
+      var load = document.createElement("button");
+      load.type = "button";
+      load.textContent = name;
+      load.style.cssText = "min-height:38px;padding:0 12px;border:0;background:transparent;color:var(--text);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer";
+      load.addEventListener("click", function () { applyStyle(presets[name]); showToast("Loaded " + name); });
+      var del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "×";
+      del.setAttribute("aria-label", "Delete style " + name);
+      del.style.cssText = "min-height:38px;width:34px;border:0;border-left:1px solid var(--line);background:transparent;color:var(--text-3);font-size:15px;cursor:pointer";
+      del.addEventListener("click", function () {
+        var p = readPresets();
+        delete p[name];
+        localStorage.setItem(PRESET_KEY, JSON.stringify(p));
+        renderPresets();
+        showToast("Deleted " + name);
+      });
+      chip.appendChild(load);
+      chip.appendChild(del);
+      presetList.appendChild(chip);
+    });
+  }
+
+  function applyStyle(s) {
+    if (!s || typeof s !== "object") return;
+    if (s.ratio) pick("ratio", s.ratio);
+    if (s.bg && s.bg !== "image") pick("bg", s.bg);
+    if (s.length) pick("length", s.length);
+    if (s.fit) pick("fit", s.fit);
+    if (s.capStyle) pick("capstyle", s.capStyle);
+    if (s.capFont) pick("capfont", s.capFont);
+    if (s.capSize) {
+      state.capSize = s.capSize;
+      var size = document.getElementById("cap-size");
+      if (size) size.value = s.capSize;
+    }
+    if (typeof s.captions === "boolean" && s.captions !== state.captions) captionsSwitch.click();
+    if (typeof s.smart === "boolean") setSwitch(smartSwitch, "smart", s.smart);
+    if (typeof s.hook === "boolean") setSwitch(hookSwitch, "hook", s.hook);
+    var y = parseFloat(s.capY);
+    if (y >= 14 && y <= 86) {
+      captionBand.style.setProperty("--cap-y", y + "%");
+      captionBand.setAttribute("aria-valuenow", String(Math.round(y)));
+    }
+    applyCaptionPreview();
+    saveState();
+  }
+
+  function setSwitch(node, key, on) {
+    state[key] = on;
+    node.setAttribute("aria-checked", String(on));
+    node.textContent = on ? "On" : "Off";
+  }
+
+  smartSwitch.addEventListener("click", function () {
+    setSwitch(smartSwitch, "smart", !state.smart);
+    if (!state.smart) { state.plan = []; renderPlan(); }
+    saveState();
+  });
+  hookSwitch.addEventListener("click", function () {
+    setSwitch(hookSwitch, "hook", !state.hook);
+    saveState();
+  });
+
+  document.getElementById("preset-save").addEventListener("click", function () {
+    var name = (presetName.value || "").trim();
+    if (!name) { showToast("Name the recipe first"); presetName.focus(); return; }
+    var presets = readPresets();
+    presets[name.slice(0, 40)] = styleFromState();
+    localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+    presetName.value = "";
+    renderPresets();
+    showToast("Saved " + name);
+  });
+
+  renderPresets();
+
+  (async function syncServerStyles() {
+    try {
+      var r = await fetch("/api/presets");
+      if (!r.ok) return;
+      var j = await r.json();
+      var server = (j && j.presets) || {};
+      var local = readPresets();
+      var changed = false;
+      Object.keys(server).forEach(function (name) {
+        if (!local[name]) { local[name] = server[name]; changed = true; }
+      });
+      if (changed) {
+        localStorage.setItem(PRESET_KEY, JSON.stringify(local));
+        renderPresets();
+      }
+    } catch (e) { /* static hosting: no server styles */ }
+  })();
+
   async function generateShorts() {
     if (genBusy) return;
     if (!state.videoUrl) { showToast("Upload a video first"); return; }
@@ -2150,15 +2411,17 @@
       try {
         var fid = state.videoFile && state.videoFile.name;
         if (!fid) { setStatus("Generate failed", "File not on server. Re-upload via Upload.", 0); return; }
-        setStatus("Making shorts", "Sending to fast backend (ffmpeg)...", 0.08);
-        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: parseFloat(captionBand.getAttribute("aria-valuenow")) || 54 }) });
+        if (state.smart && !state.plan.length) { await loadPlan(true); }
+        setStatus("Making shorts", state.plan.length ? "Cutting " + state.plan.length + " planned moments..." : "Sending to fast backend (ffmpeg)...", 0.08);
+        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: capYValue(), hook: state.hook && !state.captions ? true : state.hook, plan: state.plan.map(function (p) { return { start: p.start, len: p.end - p.start, title: p.title }; }) }) });
         var gj = await gr.json();
         var poll = setInterval(async () => {
           try {
             var s = await fetch("/api/jobs/" + gj.job_id).then(r => r.json());
             if (s.status === "done") {
               clearInterval(poll);
-              (s.clips || []).forEach(function (c, i) { appendShort({ type: "video/mp4" }, i, c); });
+              var items = s.items || [];
+              (s.clips || []).forEach(function (c, i) { appendShort({ type: "video/mp4" }, i, c, items[i] || null); });
               setStatus("Done", (s.clips || []).length + " shorts ready to download (fast, no realtime wait).", 1);
               showToast("Generated " + (s.clips || []).length + " shorts");
               genBusy = false; genBtn.disabled = false; genCancelBtn.hidden = true;
