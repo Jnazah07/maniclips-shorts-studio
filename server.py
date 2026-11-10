@@ -287,7 +287,7 @@ def subject_center(src, start, length, samples=8, min_share=0.3, dims=None):
     # Keep only hits near the weighted median; a stray detection on a cutaway must not drag the crop.
     seed = _weighted_median(hits)
     keep = [h for h in hits if abs(h[0] - seed[0]) <= dw * 0.18] or [seed]
-    share = len(keep) / float(n)
+    share = len(keep) / float(max(1, len(frames)))
     if share < min_share:
         return None
     pick = _weighted_median(keep)
