@@ -39,11 +39,18 @@ registration are consistent.
 
 Shortsmith is installable on desktop and mobile:
 
-- Chrome / Edge: click **Install app** in the sidebar footer, or use the
-  browser install icon
-- Android: **Install app** button or Add to Home screen
-- iPhone / iPad (Safari): Share > Add to Home Screen (the Install button
-  shows this hint on iOS)
+- **Windows (installed app)**: `launch-shortsmith.ps1` starts the engine if it
+  is not running and opens Shortsmith in its own app window. Drop a shortcut
+  to it on the Desktop or in the Start Menu (`icon.ico` is the app icon).
+  It focuses the existing window instead of stacking a new one.
+- **Chrome / Edge (PWA)**: open `http://127.0.0.1:8080/` and click **Install
+  app** in the sidebar footer. Localhost is a secure context, so this gives
+  the real install (offline app shell, own window, taskbar icon).
+- **Android**: the phone must reach the engine, so PWA install needs HTTPS.
+  Over plain HTTP on a LAN address Chrome will not offer the prompt; use
+  Add to Home screen from the browser menu instead.
+- **iPhone / iPad (Safari)**: Share > Add to Home Screen (the Install button
+  shows this hint on iOS).
 
 Files that make it installable:
 
@@ -51,7 +58,8 @@ Files that make it installable:
 - `sw.js` - offline app shell cache (same origin only; fonts and preview
   image still load from the network)
 - `icon-192.png` / `icon-512.png` / `icon-maskable-512.png` - app icons
-- `icon.svg` - source logo
+- `icon.svg` - source logo, `icon.ico` - Windows shortcut icon
+- `launch-shortsmith.ps1` - engine autostart + app window launcher
 
 Install prompts require HTTPS (or `localhost` / `127.0.0.1`) and the
 registration served over HTTP. Use the server above for `127.0.0.1`.
