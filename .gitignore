@@ -1,0 +1,12 @@
+# Runtime data
+data/
+__pycache__/
+*.pyc
+
+# Local media
+*.mp4
+*.ass
+
+# OS / editor
+Thumbs.db
+.DS_Store
