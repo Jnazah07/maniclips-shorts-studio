@@ -1573,13 +1573,13 @@
       ytFrame.hidden = false; ytFrame.style.display = "";
       ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?rel=0";
       if (onPages) {
-        sourceChip.textContent = "YouTube preview only. Link download needs your PC server (node server.js).";
+        sourceChip.textContent = "YouTube preview only. Link download needs your PC engine (python server.py).";
         statusTitle.textContent = "YouTube preview only";
-        statusMeta.textContent = "GitHub Pages cannot fetch YouTube files. Run node server.js on your PC or download the MP4 and use Upload.";
+        statusMeta.textContent = "GitHub Pages cannot fetch YouTube files. Run python server.py on your PC or download the MP4 and use Upload.";
       } else {
         sourceChip.textContent = "YouTube preview " + id + " (download failed, preview only)";
       }
-      setStatus("YouTube preview only", "Local server could not fetch (try node server.js + yt-dlp). Upload the MP4 to generate.", 0);
+      setStatus("YouTube preview only", "Local server could not fetch (start python server.py, needs yt-dlp). Upload the MP4 to generate.", 0);
       showToast("Could not download, showing preview only");
     } finally {
       ytLoad.disabled = false; ytUrl.disabled = false;
@@ -2413,7 +2413,7 @@
         if (!fid) { setStatus("Generate failed", "File not on server. Re-upload via Upload.", 0); return; }
         if (state.smart && !state.plan.length) { await loadPlan(true); }
         setStatus("Making shorts", state.plan.length ? "Cutting " + state.plan.length + " planned moments..." : "Sending to fast backend (ffmpeg)...", 0.08);
-        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: capYValue(), hook: state.hook && !state.captions ? true : state.hook, plan: state.plan.map(function (p) { return { start: p.start, len: p.end - p.start, title: p.title }; }) }) });
+        var gr = await fetch("/api/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file_id: fid, length: parseLen(), ratio: state.ratio, bg: state.bg, fit: state.fit, captions: state.captions, segments: state.segments, capStyle: state.capStyle, capFont: state.capFont, capSize: state.capSize, capY: capYValue(), hook: state.hook, plan: state.plan.map(function (p) { return { start: p.start, len: p.end - p.start, title: p.title }; }) }) });
         var gj = await gr.json();
         var poll = setInterval(async () => {
           try {
