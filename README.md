@@ -74,6 +74,7 @@ registration served over HTTP. Use the server above for `127.0.0.1`.
 - **Smart cuts**: ranks clip windows from the transcript by speech density, hook words and clean sentence boundaries instead of slicing every N seconds; every cut shows a score and an editable headline
 - **Hook titles**: an uppercase headline burned into the first seconds of each clip
 - **Center on speaker**: samples the clip, finds the largest recurring face and crops around it, so a talking head that sits off to one side still fills the vertical frame. One stable crop per clip (no drifting pan), and it quietly stays centred when the face detection is unsure
+- **Downloads folder**: pick a folder once in the app (Chrome/Edge on this PC) and every clip is written straight into it, with ` (1)` suffixes on repeats. Other browsers fall back to their normal download folder
 - **My styles**: save the current length, ratio, captions, font, caption box and background as one named recipe, restore it in one tap, and share recipes with the MCP server
 - Whisper transcription: `faster-whisper` on the PC engine (fast) or Whisper WASM in the browser fallback; segments clickable to seek, editable textarea
 - Caption language = spoken language: EN / UR / HI / UR-R / HI-R (native script)

@@ -1362,6 +1362,18 @@
               </div>
 
               <div class="field">
+                <div class="field-label">
+                  <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>
+                  <span>Downloads</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <button class="btn-ghost" id="dl-choose" type="button">Choose folder</button>
+                  <button class="btn-ghost" id="dl-clear" type="button" hidden>Use browser default</button>
+                </div>
+                <p class="helper" id="dl-folder">Clips use this browser's own download folder.</p>
+              </div>
+
+              <div class="field">
                 <div class="field-label"><span>My styles</span></div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <input id="preset-name" maxlength="40" placeholder="Name this recipe" aria-label="Style recipe name" style="flex:1;min-width:140px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--text);font:inherit">
@@ -1447,7 +1459,7 @@
 
         <section class="shorts-section" id="shorts-section" aria-label="Generated shorts" style="margin-top:22px;display:none">
           <h3 style="margin:0 0 10px;font-family:var(--font-display)">Shorts</h3>
-          <p id="shorts-note" style="margin:0 0 10px;font-size:12.5px;color:var(--text-3)">Made short download</p>
+          <p id="shorts-note" style="margin:0 0 10px;font-size:12.5px;color:var(--text-3)">Finished clips land here. Downloads go to the folder picked under Downloads.</p>
           <div id="shorts-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div>
         </section>
       </section>
@@ -2166,7 +2178,146 @@
 
   document.getElementById("view-studio-btn").addEventListener("click", function () { showView("studio"); });
 
-  /* sidebar */
+  /* downloads: write straight into a folder the user picked (Chrome/Edge), else browser default */
+
+  var supportsFolders = typeof window.showDirectoryPicker === "function";
+  var dirHandle = null;
+  var dirName = "";
+  var dlFolderNote = document.getElementById("dl-folder");
+  var dlChoose = document.getElementById("dl-choose");
+  var dlClear = document.getElementById("dl-clear");
+
+  function updateDlLabel() {
+    if (dlFolderNote) {
+      dlFolderNote.textContent = dirHandle
+        ? "Clips are saved into the “" + dirName + "” folder."
+        : "Clips use this browser's own download folder.";
+    }
+    if (dlClear) dlClear.hidden = !dirHandle;
+    if (dlChoose) dlChoose.hidden = !supportsFolders;
+    document.querySelectorAll("#shorts-list a[href]").forEach(function (a) {
+      a.textContent = dirHandle ? "Save to " + dirName : "Download clip";
+    });
+  }
+
+  function idb() {
+    return new Promise(function (resolve, reject) {
+      var r = indexedDB.open("shortsmith", 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore("handles"); };
+      r.onsuccess = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+    });
+  }
+  function idbPut(key, value) {
+    return idb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("handles", "readwrite");
+        tx.objectStore("handles").put(value, key);
+        tx.oncomplete = function () { resolve(true); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+  function idbGet(key) {
+    return idb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("handles", "readonly");
+        var req = tx.objectStore("handles").get(key);
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+  function idbDel(key) {
+    return idb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("handles", "readwrite");
+        tx.objectStore("handles").delete(key);
+        tx.oncomplete = function () { resolve(true); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+
+  async function chooseFolder() {
+    if (!supportsFolders) return;
+    try {
+      var handle = await window.showDirectoryPicker({ mode: "readwrite" });
+      dirHandle = handle;
+      dirName = handle.name || "shortsmith";
+      localStorage.setItem("shortsmith.downloadDir", dirName);
+      updateDlLabel();
+      showToast("Clips will be saved to " + dirName);
+      try { await idbPut("dir", handle); } catch (e) { /* folder works this session; persistence optional */ }
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      showToast("Could not open that folder");
+    }
+  }
+
+  async function clearFolder() {
+    dirHandle = null;
+    dirName = "";
+    localStorage.removeItem("shortsmith.downloadDir");
+    try { await idbDel("dir"); } catch (e) {}
+    updateDlLabel();
+  }
+
+  async function restoreFolder() {
+    if (!supportsFolders) { updateDlLabel(); return; }
+    try {
+      var handle = await idbGet("dir");
+      if (!handle) { updateDlLabel(); return; }
+      var perm = await handle.queryPermission({ mode: "readwrite" });
+      dirHandle = perm === "granted" ? handle : null;
+      dirName = handle.name || localStorage.getItem("shortsmith.downloadDir") || "shortsmith";
+      updateDlLabel();
+    } catch (e) { updateDlLabel(); }
+  }
+
+  async function saveClip(url, name) {
+    if (dirHandle) {
+      try {
+        var perm = await dirHandle.queryPermission({ mode: "readwrite" });
+        if (perm !== "granted") perm = await dirHandle.requestPermission({ mode: "readwrite" });
+        if (perm === "granted") {
+          var res = await fetch(url);
+          if (!res.ok) throw new Error("fetch failed");
+          var blob = await res.blob();
+          var target = name;
+          var exists = await dirHandle.getFileHandle(name, { create: false }).then(function () { return true; },
+                                                                                function () { return false; });
+          if (exists) {
+            var dot = name.lastIndexOf(".");
+            var base = dot > 0 ? name.slice(0, dot) : name;
+            var ext = dot > 0 ? name.slice(dot) : "";
+            var n = 1;
+            while (await dirHandle.getFileHandle(base + " (" + n + ")" + ext, { create: false }).then(function () { return true; },
+                                                                                               function () { return false; })) {
+              n++;
+            }
+            target = base + " (" + n + ")" + ext;
+          }
+          var fh = await dirHandle.getFileHandle(target, { create: true });
+          var w = await fh.createWritable();
+          await w.write(blob);
+          await w.close();
+          showToast("Saved " + target + " to " + dirName);
+          return;
+        }
+      } catch (e) { /* fall through to the browser's own download */ }
+    }
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  if (dlChoose) dlChoose.addEventListener("click", chooseFolder);
+  if (dlClear) dlClear.addEventListener("click", clearFolder);
+  restoreFolder();
 
   var collapse = document.getElementById("collapse");
 
@@ -2206,7 +2357,11 @@
     v.style.cssText = "width:100%;border-radius:10px;background:#000";
     var a = document.createElement("a");
     a.href = url; a.download = name;
-    a.textContent = "Download clip";
+    a.textContent = dirHandle ? "Save to " + dirName : "Download clip";
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      saveClip(url, name);
+    });
     a.style.cssText = "display:inline-flex;align-items:center;min-height:44px;margin-top:8px;color:#99f6e4;font-size:13px;font-weight:600";
     if (meta && (meta.title || meta.score != null)) {
       var cap = document.createElement("p");
@@ -2523,6 +2678,9 @@
     genBusy = false; genCancel = false; genBtn.disabled = false; genCancelBtn.hidden = true;
   }
   window.__shortsmith.generateShorts = generateShorts;
+  window.__shortsmith.saveClip = saveClip;
+  window.__shortsmith.chooseFolder = chooseFolder;
+  window.__shortsmith.getDownloadDir = function () { return dirHandle ? dirName : null; };
   document.getElementById("generate").addEventListener("click", function () { generateShorts().catch(function (e) { setStatus("Generate failed", (e && e.message) || "See console.", 0); genBusy = false; genCancel = false; document.getElementById("generate").disabled = false; document.getElementById("generate-cancel").hidden = true; }); });
   document.getElementById("generate-cancel").addEventListener("click", function () { genCancel = true; showToast("Cancelling export"); });
 
